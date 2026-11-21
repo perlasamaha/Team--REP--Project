@@ -67,7 +67,9 @@ def login_required(view):
 @app.route("/")
 def home():
     regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
-    return render_template("home.html", regions=regions)
+    return render_template("home.html", regions=regions,
+                           surfaces=api_client.SURFACES,
+                           smoothness=api_client.SMOOTHNESS)
 
 
 @app.route("/roads")

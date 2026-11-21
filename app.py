@@ -14,7 +14,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, abort, jsonify)
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, Favorite
+from models import db, User, Favorite, Road, Watchlist
 import api_client
 from validators import validate_signup, validate_login, validate_road_search
 
@@ -43,14 +43,17 @@ with app.app_context():
 
 @app.context_processor
 def inject_globals():
-    """Make the logged-in user (and their favorite ids) available in templates."""
     user = None
     favorite_ids = set()
+    watchlist_by_osm = {}
     if "user_id" in session:
-        user = User.query.get(session["user_id"])
+        user = db.session.get(User, session["user_id"])
         if user:
             favorite_ids = {f.item_id for f in user.favorites}
-    return {"current_user": user, "favorite_ids": favorite_ids}
+            watchlist_by_osm = {w.road.osm_id: w.id for w in user.watchlist
+                                if w.road.element_type == "way"}
+    return {"current_user": user, "favorite_ids": favorite_ids,
+            "watchlist_by_osm": watchlist_by_osm}
 
 
 def login_required(view):
@@ -210,6 +213,69 @@ def favorites_remove():
         db.session.commit()
         flash("Removed from favorites.")
     return redirect(request.form.get("next") or url_for("favorites"))
+
+def safe_next(default_endpoint):
+    """Redirect target from a form, only if it is a path on this site."""
+    target = request.form.get("next", "")
+    if target.startswith("/") and not target.startswith("//"):
+        return target
+    return url_for(default_endpoint)
+
+
+@app.route("/watchlist")
+@login_required
+def watchlist():
+    entries = (Watchlist.query.filter_by(user_id=session["user_id"])
+               .order_by(Watchlist.created_at.desc()).all())
+    return render_template("watchlist.html", entries=entries)
+
+
+@app.route("/watchlist/add", methods=["POST"])
+@login_required
+def watchlist_add():
+    try:
+        osm_id = int(request.form.get("osm_id", "").strip())
+    except ValueError:
+        osm_id = 0
+    if not 0 < osm_id < 10**13:
+        flash("Invalid road.")
+        return redirect(safe_next("watchlist"))
+
+    road = Road.query.filter_by(osm_id=osm_id, element_type="way").first()
+    if road is None:
+        try:
+            data = api_client.get_road(osm_id)
+        except (api_client.OverpassError, KeyError, IndexError):
+            flash("Could not load this road. Please try again later.")
+            return redirect(safe_next("watchlist"))
+        road = Road(osm_id=osm_id, element_type="way",
+                    name=data.get("name") or data.get("name_ar"))
+        db.session.add(road)
+        db.session.flush()  # gives road.id without committing yet
+
+    exists = Watchlist.query.filter_by(
+        user_id=session["user_id"], road_id=road.id).first()
+    if exists:
+        flash("Already in your watchlist.")
+    else:
+        db.session.add(Watchlist(user_id=session["user_id"], road_id=road.id))
+        db.session.commit()
+        flash("Saved to your watchlist.")
+    return redirect(safe_next("watchlist"))
+
+
+@app.route("/watchlist/<int:entry_id>/delete", methods=["POST"])
+@login_required
+def watchlist_delete(entry_id):
+    entry = db.session.get(Watchlist, entry_id)
+    if entry is None:
+        abort(404)
+    if entry.user_id != session["user_id"]:
+        abort(403)
+    db.session.delete(entry)
+    db.session.commit()
+    flash("Removed from your watchlist.")
+    return redirect(safe_next("watchlist"))    
 
 
 if __name__ == "__main__":

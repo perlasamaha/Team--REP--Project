@@ -78,13 +78,14 @@ def roads():
     if errors:
         return jsonify({"errors": errors}), 400
     try:
-        all_roads = api_client.get_roads(params["region"],
-                                         params["include_service"])
+        all_roads, saved_at, stale = api_client.get_roads(
+            params["region"], params["include_service"])
     except api_client.OverpassError as e:
         return jsonify({"error": str(e)}), 502
     found = api_client.filter_roads(all_roads, params["surface"],
                                     params["smoothness"], params["name"])
-    return jsonify({"count": len(found), "roads": found})
+    return jsonify({"count": len(found), "roads": found,
+                    "stale": stale, "saved_at": saved_at})
 
 
 @app.route("/road/<osm_type>/<int:osm_id>")

@@ -2,6 +2,8 @@
 api_client.py -- ALL calls to the Overpass API live here.
 Raw OpenStreetMap data goes in, clean dictionaries come out.
 """
+import time
+
 import requests
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -19,6 +21,9 @@ REGIONS = {
     "batroun":  {"label": "Batroun",           "bbox": (34.240, 35.645, 34.270, 35.675)},
     "zahle":    {"label": "Zahle",             "bbox": (33.830, 35.880, 33.865, 35.925)},
 }
+
+CACHE_TTL = 30 * 60   # seconds an entry counts as fresh
+_cache = {}           # key (region, include_service) -> (saved_at, roads)
 
 
 class OverpassError(Exception):
@@ -44,11 +49,11 @@ def run_query(query):
                           headers=HEADERS, timeout=TIMEOUT)
         r.raise_for_status()
         data = r.json()
-    except requests.Timeout:        # specific first
+    except requests.Timeout:
         raise OverpassError("The map data service took too long to respond.")
-    except ValueError:              # bad JSON: must come before RequestException
+    except ValueError:
         raise OverpassError("The map data service returned an invalid response.")
-    except requests.RequestException:   # general catch-all last
+    except requests.RequestException:
         raise OverpassError("The map data service is unavailable right now.")
     if "remark" in data:
         raise OverpassError("The map data service is busy. Please try again in a minute.")
@@ -84,11 +89,29 @@ def normalize_way(el):
 
 
 def get_roads(region, include_service=False):
-    """All roads in a region, normalized. Filtering happens later, in Python."""
-    bbox = REGIONS[region]["bbox"]
-    raw = run_query(build_query(bbox, include_service))
-    return [normalize_way(el) for el in raw.get("elements", [])
-            if el.get("type") == "way"]
+    """Return (roads, saved_at, stale). Uses the cache before calling Overpass."""
+    key = (region, include_service)
+    now = time.time()
+    entry = _cache.get(key)
+
+    # 1. fresh entry: no Overpass call at all
+    if entry and now - entry[0] < CACHE_TTL:
+        return entry[1], entry[0], False
+
+    # 2. no entry, or expired: ask Overpass
+    try:
+        bbox = REGIONS[region]["bbox"]
+        raw = run_query(build_query(bbox, include_service))
+    except OverpassError:
+        # 3. Overpass failed: serve the old entry if we have one
+        if entry:
+            return entry[1], entry[0], True
+        raise
+
+    roads = [normalize_way(el) for el in raw.get("elements", [])
+             if el.get("type") == "way"]
+    _cache[key] = (now, roads)
+    return roads, now, False
 
 
 def get_road(osm_id):
@@ -119,11 +142,3 @@ def filter_roads(roads, surface=None, smoothness=None, name=None):
                 continue
         result.append(r)
     return result
-
-
-def search(query):
-    return []
-
-
-def get_item(item_id):
-    return None

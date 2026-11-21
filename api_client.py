@@ -9,9 +9,10 @@ import time
 import requests
 
 OVERPASS_SERVERS = [
+    "https://overpass.private.coffee/api/interpreter",
     "https://overpass-api.de/api/interpreter",
 ]
-TIMEOUT = 20  # seconds for our HTTP request, per server
+TIMEOUT = 12  # seconds per server; 2 x 12 = 24 s, under gunicorn's 30 s limit
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
 
 log = logging.getLogger(__name__)

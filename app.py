@@ -97,8 +97,6 @@ def road_detail(osm_type, osm_id):
     except api_client.OverpassError as e:
         flash(str(e))
         return redirect(url_for("home"))
-    if road is None:
-        abort(404)
     return render_template("detail.html", road=road)
 
 

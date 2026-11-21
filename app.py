@@ -120,8 +120,24 @@ def road_detail(osm_type, osm_id):
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        # TODO: implement sign-up (see the Sessions & Login slides).
-        pass
+        errors, email = validate_signup(request.form)
+        password = request.form.get("password", "")
+        data = {"email": email}
+
+        if not errors and User.query.filter_by(email=email).first():
+            errors["email"] = "An account with this email already exists."
+
+        if errors:
+            return render_template("signup.html", errors=errors, data=data), 400
+
+        user = User(email=email, password_hash=generate_password_hash(password))
+        db.session.add(user)
+        db.session.commit()
+
+        session.clear()
+        session["user_id"] = user.id
+        flash("Welcome! Your account was created.")
+        return redirect(url_for("home"))
     return render_template("signup.html", errors={}, data={})
 
 

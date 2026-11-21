@@ -24,7 +24,9 @@ def validate_signup(form):
         errors["password"] = "Password is required."
     elif len(password) < 6:
         errors["password"] = "Password must be at least 6 characters."
-    if confirm != "" and confirm != password:
+    if confirm == "":
+        errors["confirm"] = "Please confirm your password."
+    elif confirm != password:
         errors["confirm"] = "Passwords do not match."
     return errors, email
 

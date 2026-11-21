@@ -1,9 +1,11 @@
-"""Server-side validation for sign-up, log-in and road search."""
+"""Server-side validation for sign-up, log-in, road search and hazard reports."""
 import re
 
 from api_client import REGIONS, SURFACES, SMOOTHNESS
 
 EMAIL = re.compile(r"^[\w.+-]+@[\w-]+\.[\w.-]+$")
+
+SEVERITIES = ["low", "medium", "high"]
 
 
 def validate_signup(form):
@@ -61,4 +63,30 @@ def validate_road_search(args):
               "smoothness": smoothness or None,
               "name": name or None,
               "include_service": include_service}
+    return errors, params
+
+
+def validate_report_location(lat, lon, region, severity):
+    errors = {}
+    region = (region or "").strip().lower()
+    severity = (severity or "").strip().lower()
+
+    if region not in REGIONS:
+        errors["region"] = "Please choose a valid region."
+    if severity not in SEVERITIES:
+        errors["severity"] = "Severity must be low, medium or high."
+
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError):
+        errors["location"] = "Latitude and longitude must be numbers."
+    else:
+        if region in REGIONS:
+            south, west, north, east = REGIONS[region]["bbox"]
+            if not (south <= lat <= north and west <= lon <= east):
+                errors["location"] = "Location is outside the selected region."
+
+    params = {"latitude": lat, "longitude": lon,
+              "region": region, "severity": severity}
     return errors, params

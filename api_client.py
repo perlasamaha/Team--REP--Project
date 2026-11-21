@@ -6,8 +6,10 @@ import time
 
 import requests
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-TIMEOUT = 30  # seconds for our HTTP request
+OVERPASS_SERVERS = [
+    "https://overpass-api.de/api/interpreter",
+]
+TIMEOUT = 30  # seconds for our HTTP request, per server
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
 
 MAIN_ROAD_TYPES = ["motorway", "trunk", "primary", "secondary",
@@ -27,7 +29,11 @@ _cache = {}           # key (region, include_service) -> (saved_at, roads)
 
 
 class OverpassError(Exception):
-    """Raised when Overpass fails (timeout, bad status, bad JSON, remark)."""
+    """Raised when Overpass fails (timeout, bad status, bad JSON, remark, empty)."""
+
+
+class BadQueryError(OverpassError):
+    """Our own query was rejected (HTTP 400). Another server won't help."""
 
 
 def build_query(bbox, include_service=False):
@@ -42,10 +48,10 @@ def build_query(bbox, include_service=False):
     )
 
 
-def run_query(query):
-    """Send a query to Overpass and return the parsed JSON."""
+def _ask_server(url, query, allow_empty=False):
+    """Send the query to ONE server. Raise OverpassError on any failure."""
     try:
-        r = requests.post(OVERPASS_URL, data={"data": query},
+        r = requests.post(url, data={"data": query},
                           headers=HEADERS, timeout=TIMEOUT)
         r.raise_for_status()
         data = r.json()
@@ -53,11 +59,30 @@ def run_query(query):
         raise OverpassError("The map data service took too long to respond.")
     except ValueError:
         raise OverpassError("The map data service returned an invalid response.")
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 400:
+            raise BadQueryError("The map query was rejected.")
+        raise OverpassError("The map data service is unavailable right now.")
     except requests.RequestException:
         raise OverpassError("The map data service is unavailable right now.")
     if "remark" in data:
         raise OverpassError("The map data service is busy. Please try again in a minute.")
+    if not allow_empty and not data.get("elements"):
+        raise OverpassError("The map data service returned no data.")
     return data
+
+
+def run_query(query, allow_empty=False):
+    """Try each server in order; stop at the first that answers."""
+    last_error = None
+    for url in OVERPASS_SERVERS:
+        try:
+            return _ask_server(url, query, allow_empty)
+        except BadQueryError:
+            raise
+        except OverpassError as e:
+            last_error = e
+    raise last_error
 
 
 def normalize_way(el):
@@ -115,11 +140,10 @@ def get_roads(region, include_service=False):
 
 
 def get_road(osm_id):
-    """One road by OSM way id, or None if Overpass found nothing."""
+    """One road by OSM way id. Raises OverpassError if Overpass gives no usable answer."""
     query = f"[out:json][timeout:25];\nway({int(osm_id)});\nout geom;"
     raw = run_query(query)
-    elements = raw.get("elements", [])
-    return normalize_way(elements[0]) if elements else None
+    return normalize_way(raw["elements"][0])
 
 
 def _matches(value, wanted):

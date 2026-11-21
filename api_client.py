@@ -9,7 +9,7 @@ import requests
 OVERPASS_SERVERS = [
     "https://overpass-api.de/api/interpreter",
 ]
-TIMEOUT = 30  # seconds for our HTTP request, per server
+TIMEOUT = 20  # seconds for our HTTP request, per server
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
 
 MAIN_ROAD_TYPES = ["motorway", "trunk", "primary", "secondary",

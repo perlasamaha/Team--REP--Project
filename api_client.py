@@ -9,10 +9,11 @@ import time
 import requests
 
 OVERPASS_SERVERS = [
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
     "https://overpass-api.de/api/interpreter",
 ]
-TIMEOUT = 25 # seconds per server; 2 x 12 = 24 s, under gunicorn's 30 s limit
+TIMEOUT = 9  # seconds per server; 3 x 9 = 27 s worst case, under gunicorn's 30 s
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
 
 log = logging.getLogger(__name__)

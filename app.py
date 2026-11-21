@@ -146,14 +146,29 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # TODO: implement log-in (see the Sessions & Login slides).
-        pass
+        errors, email = validate_login(request.form)
+        password = request.form.get("password", "")
+        data = {"email": email}
+
+        if errors:
+            return render_template("login.html", errors=errors, data=data), 400
+
+        user = User.query.filter_by(email=email).first()
+        if user is None or not check_password_hash(user.password_hash, password):
+            flash("Invalid email or password.")
+            return render_template("login.html", errors={}, data=data), 401
+
+        session.clear()
+        session["user_id"] = user.id
+        flash("Logged in successfully.")
+        return redirect(url_for("home"))
     return render_template("login.html", errors={}, data={})
 
 
 @app.route("/logout")
 def logout():
-    # TODO: end the session (hint: session.clear()), then redirect home.
+    session.clear()
+    flash("You have been logged out.")
     return redirect(url_for("home"))
 
 

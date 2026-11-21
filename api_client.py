@@ -2,6 +2,7 @@
 api_client.py -- ALL calls to the Overpass API live here.
 Raw OpenStreetMap data goes in, clean dictionaries come out.
 """
+import logging
 import re
 import time
 
@@ -12,6 +13,8 @@ OVERPASS_SERVERS = [
 ]
 TIMEOUT = 20  # seconds for our HTTP request, per server
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
+
+log = logging.getLogger(__name__)
 
 MAIN_ROAD_TYPES = ["motorway", "trunk", "primary", "secondary",
                    "tertiary", "unclassified", "residential"]
@@ -81,18 +84,25 @@ def _ask_server(url, query, allow_empty=False):
         r.raise_for_status()
         data = r.json()
     except requests.Timeout:
+        log.warning("Overpass timeout after %ss (%s)", TIMEOUT, url)
         raise OverpassError("The map data service took too long to respond.")
     except ValueError:
+        log.warning("Overpass returned invalid JSON (%s)", url)
         raise OverpassError("The map data service returned an invalid response.")
     except requests.HTTPError as e:
-        if e.response is not None and e.response.status_code == 400:
+        status = e.response.status_code if e.response is not None else None
+        log.warning("Overpass HTTP error %s (%s)", status, url)
+        if status == 400:
             raise BadQueryError("The map query was rejected.")
         raise OverpassError("The map data service is unavailable right now.")
-    except requests.RequestException:
+    except requests.RequestException as e:
+        log.warning("Overpass request failed (%s): %r", url, e)
         raise OverpassError("The map data service is unavailable right now.")
     if "remark" in data:
+        log.warning("Overpass remark: %s", data["remark"])
         raise OverpassError("The map data service is busy. Please try again in a minute.")
     if not allow_empty and not data.get("elements"):
+        log.warning("Overpass returned no elements (%s)", url)
         raise OverpassError("The map data service returned no data.")
     return data
 

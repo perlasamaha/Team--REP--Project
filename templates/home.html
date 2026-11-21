@@ -2,7 +2,7 @@
 {% block content %}
 <h1>Find something</h1>
 <!-- TODO: change this to match your topic (e.g. "Search recipes", "Find a book") -->
-<form class="search" action="{{ url_for('search') }}" method="get">
+<form class="search" action="{{ url_for('home') }}" method="get">
   <input type="text" name="q" placeholder="Search...">
   <button type="submit">Search</button>
 </form>

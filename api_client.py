@@ -17,11 +17,12 @@ MAIN_ROAD_TYPES = ["motorway", "trunk", "primary", "secondary",
 SERVICE_TYPE = "service"
 
 REGIONS = {
-    "naccache": {"label": "Naccache-Antelias", "bbox": (33.905, 35.570, 33.935, 35.600)},
-    "jounieh":  {"label": "Jounieh",           "bbox": (33.960, 35.590, 34.000, 35.650)},
-    "jbeil":    {"label": "Jbeil (Byblos)",    "bbox": (34.105, 35.630, 34.145, 35.675)},
-    "batroun":  {"label": "Batroun",           "bbox": (34.240, 35.645, 34.270, 35.675)},
-    "zahle":    {"label": "Zahle",             "bbox": (33.830, 35.880, 33.865, 35.925)},
+    "naccache":    {"label": "Naccache-Antelias", "bbox": (33.905, 35.570, 33.935, 35.600)},
+    "jounieh":     {"label": "Jounieh",           "bbox": (33.960, 35.590, 34.000, 35.650)},
+    "jbeil":       {"label": "Jbeil (Byblos)",    "bbox": (34.105, 35.630, 34.145, 35.675)},
+    "batroun":     {"label": "Batroun",           "bbox": (34.240, 35.645, 34.270, 35.675)},
+    "zahle_south": {"label": "Zahle - South",     "bbox": (33.830, 35.880, 33.8475, 35.925)},
+    "zahle_north": {"label": "Zahle - North",     "bbox": (33.8475, 35.880, 33.865, 35.925)},
 }
 
 CACHE_TTL = 30 * 60   # seconds an entry counts as fresh

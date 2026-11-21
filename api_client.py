@@ -12,7 +12,7 @@ OVERPASS_SERVERS = [
     "https://overpass.private.coffee/api/interpreter",
     "https://overpass-api.de/api/interpreter",
 ]
-TIMEOUT = 12  # seconds per server; 2 x 12 = 24 s, under gunicorn's 30 s limit
+TIMEOUT = 25 # seconds per server; 2 x 12 = 24 s, under gunicorn's 30 s limit
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
 
 log = logging.getLogger(__name__)
@@ -84,8 +84,8 @@ def _ask_server(url, query, allow_empty=False):
                           headers=HEADERS, timeout=TIMEOUT)
         r.raise_for_status()
         data = r.json()
-    except requests.Timeout:
-        log.warning("Overpass timeout after %ss (%s)", TIMEOUT, url)
+    except requests.Timeout as e:
+        log.warning("Overpass timeout after %ss (%s): %r", TIMEOUT, url, e)
         raise OverpassError("The map data service took too long to respond.")
     except ValueError:
         log.warning("Overpass returned invalid JSON (%s)", url)

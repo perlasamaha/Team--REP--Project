@@ -14,9 +14,11 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, abort, jsonify)
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, Favorite, Road, Watchlist
+from models import db, User, Favorite, Road, Watchlist, HazardReport
 import api_client
-from validators import validate_signup, validate_login, validate_road_search
+from validators import (validate_signup, validate_login,
+                        validate_road_search, validate_report_location)
+from validators_reports import validate_report_description
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
@@ -275,8 +277,46 @@ def watchlist_delete(entry_id):
     db.session.delete(entry)
     db.session.commit()
     flash("Removed from your watchlist.")
-    return redirect(safe_next("watchlist"))    
+    return redirect(safe_next("watchlist"))   
 
+
+@app.route("/api/reports")
+def api_reports():
+    """JSON feed of a region's reports, for the map."""
+    region = request.args.get("region", "").strip()
+    if region not in api_client.REGIONS:
+        return jsonify({"errors": {"region": "Please choose a valid region."}}), 400
+    rows = (HazardReport.query.filter_by(region=region)
+            .order_by(HazardReport.created_at.desc()).limit(500).all())
+    return jsonify({"count": len(rows), "reports": [
+        {"id": r.id, "latitude": r.latitude, "longitude": r.longitude,
+         "severity": r.severity, "status": r.status, "type": r.type,
+         "description": r.description,
+         "created_at": r.created_at.isoformat()} for r in rows]})
+
+
+@app.route("/reports/new", methods=["GET", "POST"])
+@login_required
+def report_new():
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    if request.method == "POST":
+        loc_errors, params = validate_report_location(
+            request.form.get("latitude"), request.form.get("longitude"),
+            request.form.get("region"), request.form.get("severity"))
+        desc_errors, description = validate_report_description(request.form)
+        errors = {**loc_errors, **desc_errors}
+        if errors:
+            data = {k: request.form.get(k, "") for k in
+                    ("latitude", "longitude", "region", "severity", "description")}
+            return render_template("report_form.html", errors=errors,
+                                   data=data, regions=regions), 400
+        report = HazardReport(user_id=session["user_id"],
+                              description=description, **params)
+        db.session.add(report)
+        db.session.commit()
+        flash("Report posted. It is marked as unverified.")
+        return redirect(url_for("api_reports", region=report.region))
+    return render_template("report_form.html", errors={}, data={}, regions=regions)
 
 if __name__ == "__main__":
     app.run(debug=True)

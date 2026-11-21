@@ -1,14 +1,9 @@
 """Server-side validation for sign-up, log-in and road search."""
 import re
 
-from api_client import REGIONS
+from api_client import REGIONS, SURFACES, SMOOTHNESS
 
 EMAIL = re.compile(r"^[\w.+-]+@[\w-]+\.[\w.-]+$")
-
-ALLOWED_SURFACES = {"asphalt", "concrete", "paved", "unpaved", "gravel", "dirt",
-                    "paving_stones", "compacted", "sett", "ground", "unknown"}
-ALLOWED_SMOOTHNESS = {"excellent", "good", "intermediate", "bad", "very_bad",
-                      "horrible", "very_horrible", "impassable", "unknown"}
 
 
 def validate_signup(form):
@@ -48,11 +43,11 @@ def validate_road_search(args):
         errors["region"] = "Please choose a valid region."
 
     surface = args.get("surface", "").strip().lower()
-    if surface != "" and surface not in ALLOWED_SURFACES:
+    if surface != "" and surface not in SURFACES:
         errors["surface"] = "Invalid surface type."
 
     smoothness = args.get("smoothness", "").strip().lower()
-    if smoothness != "" and smoothness not in ALLOWED_SMOOTHNESS:
+    if smoothness != "" and smoothness not in SMOOTHNESS:
         errors["smoothness"] = "Invalid smoothness value."
 
     name = args.get("name", "").strip()

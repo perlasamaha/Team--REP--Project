@@ -2,6 +2,7 @@
 api_client.py -- ALL calls to the Overpass API live here.
 Raw OpenStreetMap data goes in, clean dictionaries come out.
 """
+import re
 import time
 
 import requests
@@ -17,21 +18,39 @@ MAIN_ROAD_TYPES = ["motorway", "trunk", "primary", "secondary",
 SERVICE_TYPE = "service"
 
 REGIONS = {
-    "naccache":  {"label": "Naccache",  "bbox": (33.905, 35.570, 33.935, 35.600)},
-    "jounieh":   {"label": "Jounieh",            "bbox": (33.960, 35.590, 34.000, 35.650)},
-    "jbeil":     {"label": "Jbeil (Byblos)",     "bbox": (34.105, 35.630, 34.145, 35.675)},
-    "batroun":   {"label": "Batroun",            "bbox": (34.240, 35.645, 34.270, 35.675)},
-    "zahle":     {"label": "Zahle",              "bbox": (33.830, 35.880, 33.865, 35.925)},
-    "achrafieh": {"label": "Achrafieh", "bbox": (33.880, 35.510, 33.900, 35.535)},
-    "tripoli":   {"label": "Trablos (Tripoli)",            "bbox": (34.425, 35.825, 34.450, 35.860)},
-    "saida":     {"label": "Saida (Sidon)",      "bbox": (33.545, 35.355, 33.575, 35.395)},
-    "sour":      {"label": "Sour (Tyre)",        "bbox": (33.260, 35.180, 33.285, 35.215)},
-    "baalbek":   {"label": "Baalbek",            "bbox": (33.995, 36.195, 34.015, 36.225)},
-    "beit_chaar": {"label": "Beit el Chaar", "bbox": (33.920, 35.610, 33.935, 35.630)},
+    "naccache":   {"label": "Naccache",          "bbox": (33.905, 35.570, 33.935, 35.600)},
+    "jounieh":    {"label": "Jounieh",           "bbox": (33.960, 35.590, 34.000, 35.650)},
+    "jbeil":      {"label": "Jbeil (Byblos)",    "bbox": (34.105, 35.630, 34.145, 35.675)},
+    "batroun":    {"label": "Batroun",           "bbox": (34.240, 35.645, 34.270, 35.675)},
+    "zahle":      {"label": "Zahle",             "bbox": (33.830, 35.880, 33.865, 35.925)},
+    "achrafieh":  {"label": "Achrafieh",         "bbox": (33.880, 35.510, 33.900, 35.535)},
+    "tripoli":    {"label": "Trablos (Tripoli)", "bbox": (34.425, 35.825, 34.450, 35.860)},
+    "saida":      {"label": "Saida (Sidon)",     "bbox": (33.545, 35.355, 33.575, 35.395)},
+    "sour":       {"label": "Sour (Tyre)",       "bbox": (33.260, 35.180, 33.285, 35.215)},
+    "baalbek":    {"label": "Baalbek",           "bbox": (33.995, 36.195, 34.015, 36.225)},
+    "beit_chaar": {"label": "Beit el Chaar",     "bbox": (33.920, 35.610, 33.935, 35.630)},
+}
+
+SURFACES = {
+    "asphalt":  {"en": "Asphalt",    "ar": "زفت"},
+    "concrete": {"en": "Concrete",   "ar": "بيتون"},
+    "paved":    {"en": "Paved",      "ar": "طريق مزفّتة"},
+    "unpaved":  {"en": "Unpaved",    "ar": "طريق ترابية"},
+    "gravel":   {"en": "Gravel",     "ar": "بحص"},
+    "unknown":  {"en": "Not tagged", "ar": "غير محدد"},
+}
+
+SMOOTHNESS = {
+    "good":         {"en": "Good",         "ar": "منيحة"},
+    "intermediate": {"en": "Intermediate", "ar": "وسط"},
+    "bad":          {"en": "Bad",          "ar": "سيئة"},
+    "unknown":      {"en": "Not tagged",   "ar": "غير محدد"},
 }
 
 CACHE_TTL = 30 * 60   # seconds an entry counts as fresh
 _cache = {}           # key (region, include_service) -> (saved_at, roads)
+
+ARABIC_LETTERS = re.compile(r"[\u0600-\u06FF]")
 
 
 class OverpassError(Exception):
@@ -91,6 +110,18 @@ def run_query(query, allow_empty=False):
     raise last_error
 
 
+def _arabic_name(tags):
+    """name:ar if the road has it; otherwise the plain name, but only
+    if it really contains Arabic letters."""
+    name_ar = tags.get("name:ar")
+    if name_ar:
+        return name_ar
+    name = tags.get("name")
+    if name and ARABIC_LETTERS.search(name):
+        return name
+    return None
+
+
 def normalize_way(el):
     """Turn one raw OSM element into our clean road dictionary."""
     tags = el.get("tags", {})
@@ -106,7 +137,7 @@ def normalize_way(el):
         "osm_type": el["type"],
         "osm_id": el["id"],
         "name": name_en or tags.get("name") or name_fr,
-        "name_ar": tags.get("name:ar") or tags.get("name"),
+        "name_ar": _arabic_name(tags),
         "name_en": name_en,
         "name_fr": name_fr,
         "ref": tags.get("ref"),

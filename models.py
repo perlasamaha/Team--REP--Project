@@ -14,7 +14,10 @@ class User(db.Model):
                                 cascade="all, delete-orphan")
     watchlist = db.relationship("Watchlist", backref="user",
                                 cascade="all, delete-orphan")                            
-
+    reports = db.relationship("HazardReport", backref="user",
+                              cascade="all, delete-orphan")
+    notes = db.relationship("Note", backref="user",
+                            cascade="all, delete-orphan")
 
 class Favorite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,3 +46,32 @@ class Watchlist(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     __table_args__ = (db.UniqueConstraint("user_id", "road_id",
                                           name="uniq_user_road"),)
+                                          
+class HazardReport(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    road_id = db.Column(db.Integer, db.ForeignKey("road.id"), nullable=True)
+    region = db.Column(db.String(50), nullable=False)
+    type = db.Column(db.String(30), nullable=False, default="pothole")
+    description = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(10), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="unverified")
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+    road = db.relationship("Road", backref="reports")
+    notes = db.relationship("Note", backref="report",
+                            cascade="all, delete-orphan")
+
+
+class Note(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    report_id = db.Column(db.Integer, db.ForeignKey("hazard_report.id"),
+                          nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)                                          

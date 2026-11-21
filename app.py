@@ -11,12 +11,12 @@ import os
 from functools import wraps
 
 from flask import (Flask, render_template, request, redirect, url_for,
-                   session, flash, abort)
+                   session, flash, abort, jsonify)
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Favorite
 import api_client
-from validators import validate_signup, validate_login
+from validators import validate_signup, validate_login, validate_road_search
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
@@ -66,22 +66,40 @@ def login_required(view):
 # ---------- content (from your API) --------------------------------
 @app.route("/")
 def home():
-    return render_template("home.html")
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    return render_template("home.html", regions=regions,
+                           surfaces=api_client.SURFACES,
+                           smoothness=api_client.SMOOTHNESS)
 
 
-@app.route("/search")
-def search():
-    query = request.args.get("q", "").strip()
-    items = api_client.search(query) if query else []
-    return render_template("results.html", items=items, query=query)
+@app.route("/roads")
+def roads():
+    """JSON for the map and list. Example:
+    /roads?region=naccache&surface=asphalt&include_service=1"""
+    errors, params = validate_road_search(request.args)
+    if errors:
+        return jsonify({"errors": errors}), 400
+    try:
+        all_roads, saved_at, stale = api_client.get_roads(
+            params["region"], params["include_service"])
+    except api_client.OverpassError as e:
+        return jsonify({"error": str(e)}), 502
+    found = api_client.filter_roads(all_roads, params["surface"],
+                                    params["smoothness"], params["name"])
+    return jsonify({"count": len(found), "roads": found,
+                    "stale": stale, "saved_at": saved_at})
 
 
-@app.route("/item/<item_id>")
-def item(item_id):
-    data = api_client.get_item(item_id)
-    if not data:
+@app.route("/road/<osm_type>/<int:osm_id>")
+def road_detail(osm_type, osm_id):
+    if osm_type != "way":
         abort(404)
-    return render_template("detail.html", item=data)
+    try:
+        road = api_client.get_road(osm_id)
+    except api_client.OverpassError as e:
+        flash(str(e))
+        return redirect(url_for("home"))
+    return render_template("detail.html", road=road)
 
 
 # ===================================================================

@@ -215,8 +215,14 @@ def get_roads(region, include_service=False):
 
 
 def get_road(osm_id):
-    """One road by OSM way id. Raises OverpassError if Overpass gives no usable answer."""
-    query = f"[out:json][timeout:25];\nway({int(osm_id)});\nout geom;"
+    """One road by OSM way id. Looks in the cached regions first (this includes
+    the snapshots); only then asks Overpass. Raises OverpassError if neither works."""
+    osm_id = int(osm_id)
+    for _saved_at, roads in _cache.values():
+        for road in roads:
+            if road["osm_id"] == osm_id:
+                return road
+    query = f"[out:json][timeout:25];\nway({osm_id});\nout geom;"
     raw = run_query(query)
     return normalize_way(raw["elements"][0])
 

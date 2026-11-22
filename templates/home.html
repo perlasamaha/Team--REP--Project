@@ -20,42 +20,43 @@
         {% for key, label in regions.items() %}
             <option value="{{ key }}">{{ label }}</option>
         {% endfor %}
-
     </select>
 
+    <!-- Road name search -->
+    <label for="road-name">Road name:</label>
 
-<!-- Road name search -->
-<label for="road-name">Road name:</label>
+    <input
+        type="text"
+        id="road-name"
+        name="name"
+        placeholder="Enter road name"
+    >
 
-<input
-    type="text"
-    id="road-name"
-    name="name"
-    placeholder="Enter road name">
+    <!-- Optional road surface filter -->
+    <label for="surface">Select road surface (optional):</label>
 
+    <select id="surface" name="surface">
+        <option value="">All surfaces</option>
+        <option value="asphalt">Asphalt</option>
+        <option value="concrete">Concrete</option>
+        <option value="paved">Paved</option>
+        <option value="unpaved">Unpaved</option>
+        <option value="gravel">Gravel</option>
+        <option value="unknown">Not tagged</option>
+    </select>
 
-<!-- Optional road surface filter -->
-<label for="surface">Select road surface (optional):</label>
+    <!-- Optional service roads checkbox -->
+    <label for="include-service">Include service roads</label>
 
-<select id="surface" name="surface">
-    <option value="">All surfaces</option>
-    <option value="asphalt">Asphalt</option>
-    <option value="concrete">Concrete</option>
-    <option value="paved">Paved</option>
-    <option value="unpaved">Unpaved</option>
-    <option value="gravel">Gravel</option>
-    <option value="unknown">Not tagged</option>
-</select>
+    <input
+        type="checkbox"
+        id="include-service"
+        name="include_service"
+        value="1"
+    >
 
-<!-- Optional service roads checkbox -->
-<label for="include-service">Include service roads</label>
-
-<input type="checkbox" id="include-service" 
-            name="include_service"
-            value="1">
-
-<!-- Submit road search -->
-<button type="submit">Search Roads</button>            
+    <!-- Submit road search -->
+    <button type="submit">Search Roads</button>
 
 </form>
 
@@ -80,6 +81,9 @@
         maxZoom: 19
     }).addTo(map);
 
+    // Create a layer to hold the roads displayed on the map
+    const roadsLayer = L.featureGroup().addTo(map);
+
 
     // Get the road search form
     const searchForm = document.getElementById('road-search-form');
@@ -87,86 +91,170 @@
     // Get the paragraph used to display search status messages
     const roadStatus = document.getElementById('road-status');
 
-    
+
     // Detect when the user submits the form
     searchForm.addEventListener('submit', async function(event) {
 
-    // Prevent the browser from reloading the page
-    event.preventDefault();
+        // Prevent the browser from reloading the page
+        event.preventDefault();
 
-    // Check that the form submission was detected
-    console.log('Search form submitted');
+        // Check that the form submission was detected
+        console.log('Search form submitted');
 
-    // Get the selected region
-    const region = document.getElementById('region').value;
+        // Get the selected region
+        const region = document.getElementById('region').value;
 
+        // Get the road name entered by the user
+        const roadName = document.getElementById('road-name').value;
 
-    // Get the road name entered by the user
-    const roadName = document.getElementById('road-name').value;
+        // Get the selected road surface
+        const surface = document.getElementById('surface').value;
 
-    // Get the selected road surface
-    const surface = document.getElementById('surface').value;
-
-    // Check whether service roads should be included
-    const includeService = document.getElementById('include-service').checked;
-
-    // Display the values in the console for testing
-    console.log('Region:', region);
-    console.log('Road name:', roadName);
-    console.log('Surface:', surface);
-    console.log('Include service roads:', includeService);
+        // Check whether service roads should be included
+        const includeService = document.getElementById('include-service').checked;
 
 
-    // Create the URL for the roads API
-    const url = new URL('/roads', window.location.origin);
-
-    // Add the selected region (required)
-    url.searchParams.set('region', region);
-
-    // Add the road name if provided
-    if (roadName.trim() !== '') {
-        url.searchParams.set('name', roadName.trim());
-    }
-
-    // Add the surface filter if selected
-    if (surface !== '') {
-        url.searchParams.set('surface', surface);
-    }
-
-    // Include service roads only when checked
-    if (includeService) {
-        url.searchParams.set('include_service', '1');
-    }
-
-    // Display the completed URL for testing
-    console.log('API URL:', url.toString());
+        // Display the values in the console for testing
+        console.log('Region:', region);
+        console.log('Road name:', roadName);
+        console.log('Surface:', surface);
+        console.log('Include service roads:', includeService);
 
 
-    // Inform the user that roads are being loaded
-    roadStatus.textContent = 'Loading roads...';
+        // Create the URL for the roads API
+        const url = new URL('/roads', window.location.origin);
 
-    // Send a GET request to the roads API
-  try {
-    const response = await fetch(url);
+        // Add the selected region (required)
+        url.searchParams.set('region', region);
 
-        // Convert the JSON response into a JavaScript object
-        const data = await response.json();
-
-        // Check whether the request was successful
-        if (!response.ok) {
-            console.error('API error:', data);
-            return;
+        // Add the road name if provided
+        if (roadName.trim() !== '') {
+            url.searchParams.set('name', roadName.trim());
         }
 
-        // Display the retrieved road data in the console
-        console.log('Road data:', data);
+        // Add the surface filter if selected
+        if (surface !== '') {
+            url.searchParams.set('surface', surface);
+        }
 
-    } catch (error) {
-        // Handle network errors
-        console.error('Failed to fetch roads:', error);
-    }
+        // Include service roads only when checked
+        if (includeService) {
+            url.searchParams.set('include_service', '1');
+        }
 
-    });
+        // Display the completed URL for testing
+        console.log('API URL:', url.toString());
+
+
+        // Remove roads from the previous search
+        roadsLayer.clearLayers();
+
+        // Inform the user that roads are being loaded
+        roadStatus.textContent = 'Loading roads...';
+
+
+        // Send a GET request to the roads API
+        try {
+            const response = await fetch(url);
+
+            // Convert the JSON response into a JavaScript object
+            const data = await response.json();
+
+
+            // Display an error message if the API request fails
+            if (!response.ok) {
+
+                // Handle invalid search parameters
+                if (response.status === 400) {
+                    roadStatus.textContent =
+                        'Invalid search filters. Please check your selections.';
+                }
+
+                // Handle Overpass API failures or other server errors
+                else {
+                    roadStatus.textContent =
+                        data.error || 'Unable to load roads. Please try again.';
+                }
+
+                // Display the error details in the console
+                console.error('API error:', data);
+                return;
+            }
+
+
+            // Display the retrieved road data in the console
+            console.log('Road data:', data);
+
+
+            // Display the number of roads found
+            if (data.count === 0) {
+                roadStatus.textContent =
+                    'No roads found. Try changing your search filters.';
+            } else {
+                roadStatus.textContent = data.count + ' roads found.';
+            }
+
+
+            // Draw each road returned by the API
+            data.roads.forEach(function(road) {
+
+                // Create a line using the road coordinates
+                const roadLine = L.polyline(road.coordinates, {
+                    color: 'blue',
+                    weight: 3
+                });
+
+
+                // Create a link to the road's details page
+                const detailUrl = '/road/' + road.osm_type + '/' + road.osm_id;
+
+                // Create the popup elements
+                const popup = document.createElement('div');
+
+                // Display the road name safely
+                const title = document.createElement('strong');
+                title.textContent = road.name || road.name_ar || 'Unnamed road';
+                title.dir = 'auto';
+
+                // Display the road classification
+                const roadType = document.createElement('p');
+                roadType.textContent = 'Road type: ' + (road.highway || 'Unknown');
+
+                // Create the road details link
+                const detailLink = document.createElement('a');
+                detailLink.href = detailUrl;
+                detailLink.textContent = 'View Road Details';
+
+                // Add everything to the popup
+                popup.appendChild(title);
+                popup.appendChild(roadType);
+                popup.appendChild(detailLink);
+
+                // Attach the popup to the road line
+                roadLine.bindPopup(popup);
+
+                // Add the road line to the roads layer
+                roadLine.addTo(roadsLayer);
+
+            }); // End of the forEach loop
+
+
+            // Automatically zoom to all roads after drawing them
+            if (roadsLayer.getLayers().length > 0) {
+                map.fitBounds(roadsLayer.getBounds());
+            }
+
+
+        } catch (error) {
+
+            // Display a message if the network request fails
+            roadStatus.textContent =
+                'Unable to connect to the road data service. Please try again.';
+
+            console.error('Failed to fetch roads:', error);
+        }
+
+    }); // End of the submit event listener
 
 </script>
 

@@ -2,16 +2,21 @@
 api_client.py -- ALL calls to the Overpass API live here.
 Raw OpenStreetMap data goes in, clean dictionaries come out.
 """
+import json
+import logging
 import re
 import time
+from pathlib import Path
 
 import requests
 
 OVERPASS_SERVERS = [
-    "https://overpass-api.de/api/interpreter",
+    ("https://overpass-api.de/api/interpreter", 8),
+    ("https://api.overpass-turbo.eu/interpreter", 20),
 ]
-TIMEOUT = 20  # seconds for our HTTP request, per server
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
+
+log = logging.getLogger(__name__)
 
 MAIN_ROAD_TYPES = ["motorway", "trunk", "primary", "secondary",
                    "tertiary", "unclassified", "residential"]
@@ -48,7 +53,10 @@ SMOOTHNESS = {
 }
 
 CACHE_TTL = 30 * 60   # seconds an entry counts as fresh
+COOLDOWN = 120        # seconds to skip Overpass after every server failed
+SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 _cache = {}           # key (region, include_service) -> (saved_at, roads)
+_failed_at = {}       # key -> time when every server last failed
 
 ARABIC_LETTERS = re.compile(r"[\u0600-\u06FF]")
 
@@ -59,6 +67,19 @@ class OverpassError(Exception):
 
 class BadQueryError(OverpassError):
     """Our own query was rejected (HTTP 400). Another server won't help."""
+
+
+def load_snapshots():
+    """Put the saved snapshot of each region into the cache, so the cache is
+    never empty at startup. Their saved_at is old, so they count as expired
+    and Overpass is still tried first."""
+    for region in REGIONS:
+        path = SNAPSHOT_DIR / f"{region}.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            _cache[(region, False)] = (data["saved_at"], data["roads"])
+        except (OSError, ValueError, KeyError):
+            log.warning("No usable snapshot for %s (%s)", region, path)
 
 
 def build_query(bbox, include_service=False):
@@ -73,26 +94,33 @@ def build_query(bbox, include_service=False):
     )
 
 
-def _ask_server(url, query, allow_empty=False):
+def _ask_server(url, timeout, query, allow_empty=False):
     """Send the query to ONE server. Raise OverpassError on any failure."""
     try:
         r = requests.post(url, data={"data": query},
-                          headers=HEADERS, timeout=TIMEOUT)
+                          headers=HEADERS, timeout=timeout)
         r.raise_for_status()
         data = r.json()
-    except requests.Timeout:
+    except requests.Timeout as e:
+        log.warning("Overpass timeout after %ss (%s): %r", timeout, url, e)
         raise OverpassError("The map data service took too long to respond.")
     except ValueError:
+        log.warning("Overpass returned invalid JSON (%s)", url)
         raise OverpassError("The map data service returned an invalid response.")
     except requests.HTTPError as e:
-        if e.response is not None and e.response.status_code == 400:
+        status = e.response.status_code if e.response is not None else None
+        log.warning("Overpass HTTP error %s (%s)", status, url)
+        if status == 400:
             raise BadQueryError("The map query was rejected.")
         raise OverpassError("The map data service is unavailable right now.")
-    except requests.RequestException:
+    except requests.RequestException as e:
+        log.warning("Overpass request failed (%s): %r", url, e)
         raise OverpassError("The map data service is unavailable right now.")
     if "remark" in data:
+        log.warning("Overpass remark: %s", data["remark"])
         raise OverpassError("The map data service is busy. Please try again in a minute.")
     if not allow_empty and not data.get("elements"):
+        log.warning("Overpass returned no elements (%s)", url)
         raise OverpassError("The map data service returned no data.")
     return data
 
@@ -100,9 +128,9 @@ def _ask_server(url, query, allow_empty=False):
 def run_query(query, allow_empty=False):
     """Try each server in order; stop at the first that answers."""
     last_error = None
-    for url in OVERPASS_SERVERS:
+    for url, timeout in OVERPASS_SERVERS:
         try:
-            return _ask_server(url, query, allow_empty)
+            return _ask_server(url, timeout, query, allow_empty)
         except BadQueryError:
             raise
         except OverpassError as e:
@@ -160,16 +188,24 @@ def get_roads(region, include_service=False):
     if entry and now - entry[0] < CACHE_TTL:
         return entry[1], entry[0], False
 
-    # 2. no entry, or expired: ask Overpass
+    # 2. every server failed a moment ago: do not wait for them again
+    if now - _failed_at.get(key, 0) < COOLDOWN:
+        if entry:
+            return entry[1], entry[0], True
+        raise OverpassError("The map data service is unavailable right now.")
+
+    # 3. no entry, or expired: ask Overpass
     try:
         bbox = REGIONS[region]["bbox"]
         raw = run_query(build_query(bbox, include_service))
     except OverpassError:
-        # 3. Overpass failed: serve the old entry if we have one
+        # 4. Overpass failed: remember it, serve the old entry if we have one
+        _failed_at[key] = now
         if entry:
             return entry[1], entry[0], True
         raise
 
+    _failed_at.pop(key, None)
     roads = [normalize_way(el) for el in raw.get("elements", [])
              if el.get("type") == "way"]
     _cache[key] = (now, roads)
@@ -177,8 +213,14 @@ def get_roads(region, include_service=False):
 
 
 def get_road(osm_id):
-    """One road by OSM way id. Raises OverpassError if Overpass gives no usable answer."""
-    query = f"[out:json][timeout:25];\nway({int(osm_id)});\nout geom;"
+    """One road by OSM way id. Looks in the cached regions first (this includes
+    the snapshots); only then asks Overpass. Raises OverpassError if neither works."""
+    osm_id = int(osm_id)
+    for _saved_at, roads in _cache.values():
+        for road in roads:
+            if road["osm_id"] == osm_id:
+                return road
+    query = f"[out:json][timeout:25];\nway({osm_id});\nout geom;"
     raw = run_query(query)
     return normalize_way(raw["elements"][0])
 
@@ -203,3 +245,6 @@ def filter_roads(roads, surface=None, smoothness=None, name=None):
                 continue
         result.append(r)
     return result
+
+
+load_snapshots()

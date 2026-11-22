@@ -2,16 +2,18 @@
 api_client.py -- ALL calls to the Overpass API live here.
 Raw OpenStreetMap data goes in, clean dictionaries come out.
 """
+import json
 import logging
 import re
 import time
+from pathlib import Path
 
 import requests
 
 OVERPASS_SERVERS = [
-    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter",
     "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",    
 ]
 TIMEOUT = 9  # seconds per server; 3 x 9 = 27 s worst case, under gunicorn's 30 s
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
@@ -53,7 +55,10 @@ SMOOTHNESS = {
 }
 
 CACHE_TTL = 30 * 60   # seconds an entry counts as fresh
+COOLDOWN = 120        # seconds to skip Overpass after every server failed
+SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 _cache = {}           # key (region, include_service) -> (saved_at, roads)
+_failed_at = {}       # key -> time when every server last failed
 
 ARABIC_LETTERS = re.compile(r"[\u0600-\u06FF]")
 
@@ -64,6 +69,19 @@ class OverpassError(Exception):
 
 class BadQueryError(OverpassError):
     """Our own query was rejected (HTTP 400). Another server won't help."""
+
+
+def load_snapshots():
+    """Put the saved snapshot of each region into the cache, so the cache is
+    never empty at startup. Their saved_at is old, so they count as expired
+    and Overpass is still tried first."""
+    for region in REGIONS:
+        path = SNAPSHOT_DIR / f"{region}.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            _cache[(region, False)] = (data["saved_at"], data["roads"])
+        except (OSError, ValueError, KeyError):
+            log.warning("No usable snapshot for %s (%s)", region, path)
 
 
 def build_query(bbox, include_service=False):
@@ -172,16 +190,24 @@ def get_roads(region, include_service=False):
     if entry and now - entry[0] < CACHE_TTL:
         return entry[1], entry[0], False
 
-    # 2. no entry, or expired: ask Overpass
+    # 2. every server failed a moment ago: do not wait for them again
+    if now - _failed_at.get(key, 0) < COOLDOWN:
+        if entry:
+            return entry[1], entry[0], True
+        raise OverpassError("The map data service is unavailable right now.")
+
+    # 3. no entry, or expired: ask Overpass
     try:
         bbox = REGIONS[region]["bbox"]
         raw = run_query(build_query(bbox, include_service))
     except OverpassError:
-        # 3. Overpass failed: serve the old entry if we have one
+        # 4. Overpass failed: remember it, serve the old entry if we have one
+        _failed_at[key] = now
         if entry:
             return entry[1], entry[0], True
         raise
 
+    _failed_at.pop(key, None)
     roads = [normalize_way(el) for el in raw.get("elements", [])
              if el.get("type") == "way"]
     _cache[key] = (now, roads)
@@ -215,3 +241,6 @@ def filter_roads(roads, surface=None, smoothness=None, name=None):
                 continue
         result.append(r)
     return result
+
+
+load_snapshots()

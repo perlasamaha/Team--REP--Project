@@ -1,16 +1,29 @@
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}My Project{% endblock %}</title>
+
+  <title>{% block title %}Tari2na{% endblock %}</title>
+
+  <!-- Main website stylesheet -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- Leaflet CSS for interactive maps -->
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  {% block extra_head %}{% endblock %}
 </head>
+
 <body>
   <header class="nav">
-    <a class="brand" href="{{ url_for('home') }}">My Project</a>
+    <a class="brand" href="{{ url_for('home') }}">Tari2na</a>
+
     <nav>
       <a href="{{ url_for('home') }}">Home</a>
+
       {% if current_user %}
         <a href="{{ url_for('favorites') }}">My Favorites</a>
         <span class="who">{{ current_user.email }}</span>
@@ -21,11 +34,27 @@
       {% endif %}
     </nav>
   </header>
+
   <main class="container">
+
     {% with messages = get_flashed_messages() %}
-      {% if messages %}<div class="flash">{% for m in messages %}<p>{{ m }}</p>{% endfor %}</div>{% endif %}
+      {% if messages %}
+        <div class="flash">
+          {% for m in messages %}
+            <p>{{ m }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
     {% endwith %}
+
     {% block content %}{% endblock %}
+
   </main>
+
+  <!-- Leaflet JavaScript -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- JavaScript specific to individual pages -->
+  {% block scripts %}{% endblock %}
 </body>
 </html>

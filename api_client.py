@@ -11,11 +11,9 @@ from pathlib import Path
 import requests
 
 OVERPASS_SERVERS = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter",
-    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",    
+    ("https://overpass-api.de/api/interpreter", 8),
+    ("https://api.overpass-turbo.eu/interpreter", 20),
 ]
-TIMEOUT = 9  # seconds per server; 3 x 9 = 27 s worst case, under gunicorn's 30 s
 HEADERS = {"User-Agent": "Tari2na-student-project/1.0"}
 
 log = logging.getLogger(__name__)
@@ -96,15 +94,15 @@ def build_query(bbox, include_service=False):
     )
 
 
-def _ask_server(url, query, allow_empty=False):
+def _ask_server(url, timeout, query, allow_empty=False):
     """Send the query to ONE server. Raise OverpassError on any failure."""
     try:
         r = requests.post(url, data={"data": query},
-                          headers=HEADERS, timeout=TIMEOUT)
+                          headers=HEADERS, timeout=timeout)
         r.raise_for_status()
         data = r.json()
     except requests.Timeout as e:
-        log.warning("Overpass timeout after %ss (%s): %r", TIMEOUT, url, e)
+        log.warning("Overpass timeout after %ss (%s): %r", timeout, url, e)
         raise OverpassError("The map data service took too long to respond.")
     except ValueError:
         log.warning("Overpass returned invalid JSON (%s)", url)
@@ -130,9 +128,9 @@ def _ask_server(url, query, allow_empty=False):
 def run_query(query, allow_empty=False):
     """Try each server in order; stop at the first that answers."""
     last_error = None
-    for url in OVERPASS_SERVERS:
+    for url, timeout in OVERPASS_SERVERS:
         try:
-            return _ask_server(url, query, allow_empty)
+            return _ask_server(url, timeout, query, allow_empty)
         except BadQueryError:
             raise
         except OverpassError as e:

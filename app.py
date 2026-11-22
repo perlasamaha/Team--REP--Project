@@ -14,9 +14,11 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, abort, jsonify)
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, Favorite
+from models import db, User, Favorite, Road, Watchlist, HazardReport
 import api_client
-from validators import validate_signup, validate_login, validate_road_search
+from validators import (validate_signup, validate_login,
+                        validate_road_search, validate_report_location)
+from validators_reports import validate_report_description
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
@@ -43,14 +45,17 @@ with app.app_context():
 
 @app.context_processor
 def inject_globals():
-    """Make the logged-in user (and their favorite ids) available in templates."""
     user = None
     favorite_ids = set()
+    watchlist_by_osm = {}
     if "user_id" in session:
-        user = User.query.get(session["user_id"])
+        user = db.session.get(User, session["user_id"])
         if user:
             favorite_ids = {f.item_id for f in user.favorites}
-    return {"current_user": user, "favorite_ids": favorite_ids}
+            watchlist_by_osm = {w.road.osm_id: w.id for w in user.watchlist
+                                if w.road.element_type == "way"}
+    return {"current_user": user, "favorite_ids": favorite_ids,
+            "watchlist_by_osm": watchlist_by_osm}
 
 
 def login_required(view):
@@ -122,22 +127,53 @@ def road_detail(osm_type, osm_id):
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        # TODO: implement sign-up (see the Sessions & Login slides).
-        pass
+        errors, email = validate_signup(request.form)
+        password = request.form.get("password", "")
+        data = {"email": email}
+
+        if not errors and User.query.filter_by(email=email).first():
+            errors["email"] = "An account with this email already exists."
+
+        if errors:
+            return render_template("signup.html", errors=errors, data=data), 400
+
+        user = User(email=email, password_hash=generate_password_hash(password))
+        db.session.add(user)
+        db.session.commit()
+
+        session.clear()
+        session["user_id"] = user.id
+        flash("Welcome! Your account was created.")
+        return redirect(url_for("home"))
     return render_template("signup.html", errors={}, data={})
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # TODO: implement log-in (see the Sessions & Login slides).
-        pass
+        errors, email = validate_login(request.form)
+        password = request.form.get("password", "")
+        data = {"email": email}
+
+        if errors:
+            return render_template("login.html", errors=errors, data=data), 400
+
+        user = User.query.filter_by(email=email).first()
+        if user is None or not check_password_hash(user.password_hash, password):
+            flash("Invalid email or password.")
+            return render_template("login.html", errors={}, data=data), 401
+
+        session.clear()
+        session["user_id"] = user.id
+        flash("Logged in successfully.")
+        return redirect(url_for("home"))
     return render_template("login.html", errors={}, data={})
 
 
 @app.route("/logout")
 def logout():
-    # TODO: end the session (hint: session.clear()), then redirect home.
+    session.clear()
+    flash("You have been logged out.")
     return redirect(url_for("home"))
 
 
@@ -180,6 +216,186 @@ def favorites_remove():
         flash("Removed from favorites.")
     return redirect(request.form.get("next") or url_for("favorites"))
 
+def safe_next(default_endpoint):
+    """Redirect target from a form, only if it is a path on this site."""
+    target = request.form.get("next", "")
+    if target.startswith("/") and not target.startswith("//"):
+        return target
+    return url_for(default_endpoint)
+
+
+@app.route("/watchlist")
+@login_required
+def watchlist():
+    entries = (Watchlist.query.filter_by(user_id=session["user_id"])
+               .order_by(Watchlist.created_at.desc()).all())
+    return render_template("watchlist.html", entries=entries)
+
+
+@app.route("/watchlist/add", methods=["POST"])
+@login_required
+def watchlist_add():
+    try:
+        osm_id = int(request.form.get("osm_id", "").strip())
+    except ValueError:
+        osm_id = 0
+    if not 0 < osm_id < 10**13:
+        flash("Invalid road.")
+        return redirect(safe_next("watchlist"))
+
+    road = Road.query.filter_by(osm_id=osm_id, element_type="way").first()
+    if road is None:
+        try:
+            data = api_client.get_road(osm_id)
+        except (api_client.OverpassError, KeyError, IndexError):
+            flash("Could not load this road. Please try again later.")
+            return redirect(safe_next("watchlist"))
+        road = Road(osm_id=osm_id, element_type="way",
+                    name=data.get("name") or data.get("name_ar"))
+        db.session.add(road)
+        db.session.flush()  # gives road.id without committing yet
+
+    exists = Watchlist.query.filter_by(
+        user_id=session["user_id"], road_id=road.id).first()
+    if exists:
+        flash("Already in your watchlist.")
+    else:
+        db.session.add(Watchlist(user_id=session["user_id"], road_id=road.id))
+        db.session.commit()
+        flash("Saved to your watchlist.")
+    return redirect(safe_next("watchlist"))
+
+
+@app.route("/watchlist/<int:entry_id>/delete", methods=["POST"])
+@login_required
+def watchlist_delete(entry_id):
+    entry = db.session.get(Watchlist, entry_id)
+    if entry is None:
+        abort(404)
+    if entry.user_id != session["user_id"]:
+        abort(403)
+    db.session.delete(entry)
+    db.session.commit()
+    flash("Removed from your watchlist.")
+    return redirect(safe_next("watchlist"))   
+
+def validate_report_form(form):
+    """Run both report validators. Returns (errors, params, description, data)."""
+    loc_errors, params = validate_report_location(
+        form.get("latitude"), form.get("longitude"),
+        form.get("region"), form.get("severity"))
+    desc_errors, description = validate_report_description(form)
+    errors = {**loc_errors, **desc_errors}
+    data = {k: form.get(k, "") for k in
+            ("latitude", "longitude", "region", "severity", "description")}
+    return errors, params, description, data
+
+
+def get_owned_report(report_id):
+    """Load a report, or stop with 404 (missing) / 403 (not the owner)."""
+    report = db.session.get(HazardReport, report_id)
+    if report is None:
+        abort(404)
+    if report.user_id != session["user_id"]:
+        abort(403)
+    return report
+
+@app.route("/api/reports")
+def api_reports():
+    """JSON feed of a region's reports, for the map."""
+    region = request.args.get("region", "").strip()
+    if region not in api_client.REGIONS:
+        return jsonify({"errors": {"region": "Please choose a valid region."}}), 400
+    rows = (HazardReport.query.filter_by(region=region)
+            .order_by(HazardReport.created_at.desc()).limit(500).all())
+    return jsonify({"count": len(rows), "reports": [
+        {"id": r.id, "latitude": r.latitude, "longitude": r.longitude,
+         "severity": r.severity, "status": r.status, "type": r.type,
+         "description": r.description,
+         "created_at": r.created_at.isoformat()} for r in rows]})
+
+
+
+@app.route("/reports/new", methods=["GET", "POST"])
+@login_required
+def report_new():
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    if request.method == "POST":
+        errors, params, description, data = validate_report_form(request.form)
+        if errors:
+            return render_template("report_form.html", errors=errors,
+                                   data=data, regions=regions), 400
+        report = HazardReport(user_id=session["user_id"],
+                              description=description, **params)
+        db.session.add(report)
+        db.session.commit()
+        flash("Report posted. It is marked as unverified.")
+        return redirect(url_for("report_detail", report_id=report.id))
+    return render_template("report_form.html", errors={}, data={}, regions=regions)
+
+@app.route("/reports")
+def reports():
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    region = request.args.get("region", "").strip()
+    if region and region not in regions:
+        flash("Unknown region.")
+        region = ""
+    query = HazardReport.query
+    if region:
+        query = query.filter_by(region=region)
+    rows = query.order_by(HazardReport.created_at.desc()).limit(100).all()
+    return render_template("reports.html", reports=rows,
+                           regions=regions, selected=region)
+
+
+@app.route("/reports/<int:report_id>")
+def report_detail(report_id):
+    report = db.session.get(HazardReport, report_id)
+    if report is None:
+        abort(404)
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    is_owner = "user_id" in session and report.user_id == session["user_id"]
+    return render_template("report_detail.html", report=report,
+                           regions=regions, is_owner=is_owner)
+
+
+@app.route("/reports/<int:report_id>/edit", methods=["GET", "POST"])
+@login_required
+def report_edit(report_id):
+    report = get_owned_report(report_id)
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    action = url_for("report_edit", report_id=report.id)
+    if request.method == "POST":
+        errors, params, description, data = validate_report_form(request.form)
+        if errors:
+            return render_template("report_form.html", errors=errors, data=data,
+                                   regions=regions, form_action=action,
+                                   title="Edit report",
+                                   submit_label="Save changes"), 400
+        report.latitude = params["latitude"]
+        report.longitude = params["longitude"]
+        report.region = params["region"]
+        report.severity = params["severity"]
+        report.description = description
+        db.session.commit()
+        flash("Report updated.")
+        return redirect(url_for("report_detail", report_id=report.id))
+    data = {"latitude": str(report.latitude), "longitude": str(report.longitude),
+            "region": report.region, "severity": report.severity,
+            "description": report.description}
+    return render_template("report_form.html", errors={}, data=data,
+                           regions=regions, form_action=action,
+                           title="Edit report", submit_label="Save changes")
+
+
+@app.route("/reports/<int:report_id>/delete", methods=["POST"])
+@login_required
+def report_delete(report_id):
+    report = get_owned_report(report_id)
+    db.session.delete(report)
+    db.session.commit()
+    flash("Report deleted.")
+    return redirect(url_for("reports"))
 
 if __name__ == "__main__":
     app.run(debug=True)

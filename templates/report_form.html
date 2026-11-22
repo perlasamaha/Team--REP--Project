@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ title or "Report a hazard" }}{% endblock %}
+{% block content %}
+<h1>{{ title or "Report a pothole" }}</h1>
+<form method="post" action="{{ form_action or url_for('report_new') }}" novalidate class="auth">
+  <label>Region
+    <select name="region">
+      <option value="">Choose...</option>
+      {% for key, label in regions.items() %}
+        <option value="{{ key }}" {% if data.get('region') == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% if errors.get('region') %}<span class="error">{{ errors['region'] }}</span>{% endif %}
+
+  <label>Latitude <input name="latitude" value="{{ data.get('latitude','') }}"></label>
+  <label>Longitude <input name="longitude" value="{{ data.get('longitude','') }}"></label>
+  {% if errors.get('location') %}<span class="error">{{ errors['location'] }}</span>{% endif %}
+
+  <label>Severity
+    <select name="severity">
+      {% for s in ['low', 'medium', 'high'] %}
+        <option value="{{ s }}" {% if data.get('severity') == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% if errors.get('severity') %}<span class="error">{{ errors['severity'] }}</span>{% endif %}
+
+  <label>Description <textarea name="description" rows="4">{{ data.get('description','') }}</textarea></label>
+  {% if errors.get('description') %}<span class="error">{{ errors['description'] }}</span>{% endif %}
+
+  <button type="submit">{{ submit_label or "Post report" }}</button>
+</form>
+{% endblock %}

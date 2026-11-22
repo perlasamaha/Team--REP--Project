@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Report a hazard{% endblock %}
+{% block title %}{{ title or "Report a hazard" }}{% endblock %}
 {% block content %}
-<h1>Report a pothole</h1>
-<form method="post" action="{{ url_for('report_new') }}" novalidate class="auth">
+<h1>{{ title or "Report a pothole" }}</h1>
+<form method="post" action="{{ form_action or url_for('report_new') }}" novalidate class="auth">
   <label>Region
     <select name="region">
       <option value="">Choose...</option>
@@ -29,6 +29,6 @@
   <label>Description <textarea name="description" rows="4">{{ data.get('description','') }}</textarea></label>
   {% if errors.get('description') %}<span class="error">{{ errors['description'] }}</span>{% endif %}
 
-  <button type="submit">Post report</button>
+  <button type="submit">{{ submit_label or "Post report" }}</button>
 </form>
 {% endblock %}

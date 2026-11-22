@@ -279,6 +279,26 @@ def watchlist_delete(entry_id):
     flash("Removed from your watchlist.")
     return redirect(safe_next("watchlist"))   
 
+def validate_report_form(form):
+    """Run both report validators. Returns (errors, params, description, data)."""
+    loc_errors, params = validate_report_location(
+        form.get("latitude"), form.get("longitude"),
+        form.get("region"), form.get("severity"))
+    desc_errors, description = validate_report_description(form)
+    errors = {**loc_errors, **desc_errors}
+    data = {k: form.get(k, "") for k in
+            ("latitude", "longitude", "region", "severity", "description")}
+    return errors, params, description, data
+
+
+def get_owned_report(report_id):
+    """Load a report, or stop with 404 (missing) / 403 (not the owner)."""
+    report = db.session.get(HazardReport, report_id)
+    if report is None:
+        abort(404)
+    if report.user_id != session["user_id"]:
+        abort(403)
+    return report
 
 @app.route("/api/reports")
 def api_reports():
@@ -295,19 +315,14 @@ def api_reports():
          "created_at": r.created_at.isoformat()} for r in rows]})
 
 
+
 @app.route("/reports/new", methods=["GET", "POST"])
 @login_required
 def report_new():
     regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
     if request.method == "POST":
-        loc_errors, params = validate_report_location(
-            request.form.get("latitude"), request.form.get("longitude"),
-            request.form.get("region"), request.form.get("severity"))
-        desc_errors, description = validate_report_description(request.form)
-        errors = {**loc_errors, **desc_errors}
+        errors, params, description, data = validate_report_form(request.form)
         if errors:
-            data = {k: request.form.get(k, "") for k in
-                    ("latitude", "longitude", "region", "severity", "description")}
             return render_template("report_form.html", errors=errors,
                                    data=data, regions=regions), 400
         report = HazardReport(user_id=session["user_id"],
@@ -315,8 +330,72 @@ def report_new():
         db.session.add(report)
         db.session.commit()
         flash("Report posted. It is marked as unverified.")
-        return redirect(url_for("api_reports", region=report.region))
+        return redirect(url_for("report_detail", report_id=report.id))
     return render_template("report_form.html", errors={}, data={}, regions=regions)
+
+@app.route("/reports")
+def reports():
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    region = request.args.get("region", "").strip()
+    if region and region not in regions:
+        flash("Unknown region.")
+        region = ""
+    query = HazardReport.query
+    if region:
+        query = query.filter_by(region=region)
+    rows = query.order_by(HazardReport.created_at.desc()).limit(100).all()
+    return render_template("reports.html", reports=rows,
+                           regions=regions, selected=region)
+
+
+@app.route("/reports/<int:report_id>")
+def report_detail(report_id):
+    report = db.session.get(HazardReport, report_id)
+    if report is None:
+        abort(404)
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    is_owner = "user_id" in session and report.user_id == session["user_id"]
+    return render_template("report_detail.html", report=report,
+                           regions=regions, is_owner=is_owner)
+
+
+@app.route("/reports/<int:report_id>/edit", methods=["GET", "POST"])
+@login_required
+def report_edit(report_id):
+    report = get_owned_report(report_id)
+    regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
+    action = url_for("report_edit", report_id=report.id)
+    if request.method == "POST":
+        errors, params, description, data = validate_report_form(request.form)
+        if errors:
+            return render_template("report_form.html", errors=errors, data=data,
+                                   regions=regions, form_action=action,
+                                   title="Edit report",
+                                   submit_label="Save changes"), 400
+        report.latitude = params["latitude"]
+        report.longitude = params["longitude"]
+        report.region = params["region"]
+        report.severity = params["severity"]
+        report.description = description
+        db.session.commit()
+        flash("Report updated.")
+        return redirect(url_for("report_detail", report_id=report.id))
+    data = {"latitude": str(report.latitude), "longitude": str(report.longitude),
+            "region": report.region, "severity": report.severity,
+            "description": report.description}
+    return render_template("report_form.html", errors={}, data=data,
+                           regions=regions, form_action=action,
+                           title="Edit report", submit_label="Save changes")
+
+
+@app.route("/reports/<int:report_id>/delete", methods=["POST"])
+@login_required
+def report_delete(report_id):
+    report = get_owned_report(report_id)
+    db.session.delete(report)
+    db.session.commit()
+    flash("Report deleted.")
+    return redirect(url_for("reports"))
 
 if __name__ == "__main__":
     app.run(debug=True)

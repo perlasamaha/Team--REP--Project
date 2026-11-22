@@ -66,6 +66,94 @@
 <!-- Interactive map displaying roads and potholes -->
 <div id="map"></div>
 
+
+<!-- Pothole reporting section -->
+<section id="report-section">
+
+    <h2>Report a Pothole</h2>
+
+    <p>
+        Found a pothole? Submit a report to help other drivers.
+    </p>
+
+    <!-- Form for submitting a new pothole report -->
+    <form id="pothole-report-form">
+
+      <!-- Display the selected pothole location -->
+<p id="selected-location-status" role="status" aria-live="polite">
+    No location selected. Click on the map to choose a pothole location.
+</p>
+
+<!-- Button to select the user's current location -->
+<button type="button" id="use-my-location">
+    Use My Location
+</button>
+
+
+<!-- Pothole description -->
+<label for="pothole-description">Describe the pothole:</label>
+
+<textarea
+    id="pothole-description"
+    name="description"
+    rows="4"
+    placeholder="Describe the pothole and its condition"
+    required
+></textarea>
+
+
+<!-- Pothole severity selection -->
+<label for="pothole-severity">Select pothole severity:</label>
+
+<select
+    id="pothole-severity"
+    name="severity"
+    required
+>
+    <option value="">Choose severity</option>
+    <option value="low">Low</option>
+    <option value="medium">Medium</option>
+    <option value="high">High</option>
+</select>
+
+
+<!-- Pothole photo upload -->
+<label for="pothole-photo">Upload a photo of the pothole:</label>
+
+<input
+    type="file"
+    id="pothole-photo"
+    name="photo"
+    accept="image/*"
+    capture="environment"
+>
+
+
+<!-- Store the selected pothole location -->
+<input
+    type="hidden"
+    id="pothole-latitude"
+    name="latitude"
+>
+
+<input
+    type="hidden"
+    id="pothole-longitude"
+    name="longitude"
+>
+
+
+<!-- Submit the pothole report -->
+<button type="submit" id="submit-pothole-report">
+    Submit Pothole Report
+</button>
+
+
+    </form>
+
+</section>
+
+
 {% endblock %}
 
 
@@ -84,12 +172,245 @@
     // Create a layer to hold the roads displayed on the map
     const roadsLayer = L.featureGroup().addTo(map);
 
+    // Create a separate layer to display reported potholes
+    const potholesLayer = L.layerGroup().addTo(map);
+
+    // Store the marker for the new pothole report location
+let selectedLocationMarker = null;
+
+
+function updateSelectedLocation(latitude, longitude) {
+
+    // Save the coordinates in the reporting form
+    document.getElementById('pothole-latitude').value = latitude;
+    document.getElementById('pothole-longitude').value = longitude;
+
+    // Update the visible confirmation message
+    document.getElementById('selected-location-status').textContent =
+        'Pothole location selected: ' +
+        latitude.toFixed(6) + ', ' +
+        longitude.toFixed(6);
+
+    // Create the marker if it does not exist
+    if (selectedLocationMarker === null) {
+
+        selectedLocationMarker = L.marker(
+            [latitude, longitude],
+            { draggable: true }
+        ).addTo(map);
+
+        // Detect when the marker is dragged
+        selectedLocationMarker.on('dragend', function(event) {
+
+            const newPosition = event.target.getLatLng();
+
+            updateSelectedLocation(
+                newPosition.lat,
+                newPosition.lng
+            );
+
+        });
+
+    } else {
+
+        // Move the marker if it already exists
+        selectedLocationMarker.setLatLng([latitude, longitude]);
+
+    }
+}
+
+
+
+ // Select a pothole location by clicking the map
+map.on('click', function(event) {
+
+    // Get the coordinates of the clicked location
+    const latitude = event.latlng.lat;
+    const longitude = event.latlng.lng;
+
+    // Update the marker, hidden fields, and confirmation message
+    updateSelectedLocation(latitude, longitude);
+
+});
+
+
+    // Display reported potholes as red circles on the map
+    function displayPotholes(reports) {
+
+        // Remove previously displayed potholes
+        potholesLayer.clearLayers();
+
+        // Go through each pothole report
+        reports.forEach(function(report) {
+
+            // Create a red circle at the reported location
+            const potholeMarker = L.circleMarker(
+                [report.latitude, report.longitude],
+                {
+                    color: 'red',
+                    fillColor: 'red',
+                    fillOpacity: 0.7,
+                    radius: 7
+                }
+            );
+            // Create a popup displaying the pothole information
+const popup = document.createElement('div');
+
+// Display the pothole report ID
+const reportTitle = document.createElement('strong');
+reportTitle.textContent = 'Pothole Report #' + report.report_id;
+
+// Display the pothole severity
+const severity = document.createElement('p');
+severity.textContent = 'Severity: ' + report.severity;
+
+// Add the information to the popup
+popup.appendChild(reportTitle);
+popup.appendChild(severity);
+
+// Attach the popup to the red circle
+potholeMarker.bindPopup(popup);
+
+            // Add the circle to the potholes layer
+            potholeMarker.addTo(potholesLayer);
+
+        });
+
+      }
+
+    // Temporary pothole reports for testing only
+    const testReports = [
+        {
+            report_id: 1,
+            latitude: 33.980,
+            longitude: 35.620,
+            severity: 'high'
+        },
+        {
+            report_id: 2,
+            latitude: 33.985,
+            longitude: 35.625,
+            severity: 'medium'
+        }
+    ];
+
+    // Test displaying the pothole reports on the map
+    displayPotholes(testReports);
+
 
     // Get the road search form
     const searchForm = document.getElementById('road-search-form');
 
     // Get the paragraph used to display search status messages
     const roadStatus = document.getElementById('road-status');
+
+    
+const useMyLocationButton = document.getElementById('use-my-location');
+
+useMyLocationButton.addEventListener('click', function() {
+
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser.');
+        return;
+    }
+
+    // Request the user's current location
+    navigator.geolocation.getCurrentPosition(
+
+        // Runs if the location is retrieved successfully
+        function(position) {
+
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            console.log('Current latitude:', latitude);
+            console.log('Current longitude:', longitude);
+
+            // Update the selected location and blue marker
+updateSelectedLocation(latitude, longitude);
+
+// Center the map on the detected location
+map.setView([latitude, longitude], 16);
+
+        },
+
+        // Runs if the location request fails
+        function(error) {
+            console.error('Unable to retrieve location:', error.message);
+        }
+
+    );
+
+});
+
+
+    // Get the pothole reporting form
+const potholeReportForm = document.getElementById('pothole-report-form');
+
+
+potholeReportForm.addEventListener('submit', function(event) {
+
+  console.log('Pothole submit event detected');
+
+    // Stop the browser from submitting the form
+    event.preventDefault();
+
+    // Get the selected pothole coordinates
+    const latitude = document.getElementById('pothole-latitude').value;
+    const longitude = document.getElementById('pothole-longitude').value;
+
+    // Check whether the user selected a location
+    if (latitude === '' || longitude === '') {
+
+        alert('Please select the pothole location on the map before submitting.');
+        return;
+
+    }
+
+    // Confirm that all required information is available
+    console.log('Pothole report form validated successfully');
+    console.log('Latitude:', latitude);
+    console.log('Longitude:', longitude);
+
+
+// Collect the pothole report information from the form
+const reportData = new FormData(potholeReportForm);
+
+// Get the selected region
+const region = document.getElementById('region').value;
+
+// Check if a region was selected
+if (region === '') {
+    alert('Please select a region before submitting.');
+    return;
+}
+
+// Add the region to the pothole report data
+reportData.set('region', region);
+
+// Display the selected region in the console
+console.log('Selected region:', region);
+
+    // Display the collected information in the console for testing
+    console.log('Description:', reportData.get('description'));
+    console.log('Severity:', reportData.get('severity'));
+    console.log('Latitude:', reportData.get('latitude'));
+    console.log('Longitude:', reportData.get('longitude'));
+
+    // Get the selected photo
+    const photo = reportData.get('photo');
+
+    // Check whether a photo was selected
+    if (photo && photo.size > 0) {
+        console.log('Photo:', photo.name);
+    } else {
+        console.log('No photo selected');
+    }
+
+
+});
+
 
 
     // Detect when the user submits the form

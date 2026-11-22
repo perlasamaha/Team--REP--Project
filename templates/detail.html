@@ -1,22 +1,37 @@
 {% extends "base.html" %}
-{% block title %}{{ item.title }}{% endblock %}
+{% block title %}{{ road.name or road.name_ar or road.ref or "Unnamed road" }}{% endblock %}
 {% block content %}
 <article class="detail">
-  <h1>{{ item.title }}</h1>
-  <img class="hero" src="{{ item.image }}" alt="{{ item.title }}">
+  <h1>{{ road.name or road.name_ar or road.ref or "Unnamed road" }}</h1>
 
+  <dl class="road-facts">
+    {% if road.name_ar %}<dt>Arabic name</dt><dd>{{ road.name_ar }}</dd>{% endif %}
+    {% if road.name_fr %}<dt>French name</dt><dd>{{ road.name_fr }}</dd>{% endif %}
+    {% if road.ref %}<dt>Road number</dt><dd>{{ road.ref }}</dd>{% endif %}
+    <dt>Road type</dt><dd>{{ road.highway or "Not tagged" }}</dd>
+    <dt>Surface</dt><dd>{{ road.surface or "Not tagged" }}</dd>
+    <dt>Smoothness</dt><dd>{{ road.smoothness or "Not tagged" }}</dd>
+    <dt>One-way</dt><dd>{{ "Yes" if road.oneway else "No" }}</dd>
+    {% if road.center %}
+      <dt>Centre</dt><dd>{{ "%.5f"|format(road.center.lat) }}, {{ "%.5f"|format(road.center.lon) }}</dd>
+    {% endif %}
+    <dt>OpenStreetMap</dt>
+    <dd><a href="https://www.openstreetmap.org/way/{{ road.osm_id }}" target="_blank" rel="noopener">way {{ road.osm_id }}</a></dd>
+  </dl>
+
+  <!-- The favorites forms below belong to Rebecca: her route decides the field names. -->
   {% if current_user %}
-    {% if item.id in favorite_ids %}
+    {% if road.osm_id in favorite_ids %}
       <form method="post" action="{{ url_for('favorites_remove') }}">
-        <input type="hidden" name="item_id" value="{{ item.id }}">
+        <input type="hidden" name="item_id" value="{{ road.osm_id }}">
         <input type="hidden" name="next" value="{{ request.path }}">
         <button class="btn remove">Remove from favorites</button>
       </form>
     {% else %}
       <form method="post" action="{{ url_for('favorites_add') }}">
-        <input type="hidden" name="item_id" value="{{ item.id }}">
-        <input type="hidden" name="item_title" value="{{ item.title }}">
-        <input type="hidden" name="item_image" value="{{ item.image }}">
+        <input type="hidden" name="item_id" value="{{ road.osm_id }}">
+        <input type="hidden" name="item_title" value="{{ road.name or road.name_ar or road.ref or 'Unnamed road' }}">
+        <input type="hidden" name="item_image" value="">
         <input type="hidden" name="next" value="{{ request.path }}">
         <button class="btn save">Save to favorites</button>
       </form>
@@ -24,8 +39,5 @@
   {% else %}
     <p><a href="{{ url_for('login') }}">Log in</a> to save this.</p>
   {% endif %}
-
-  <!-- TODO: show the fields your API returns -->
-  <p class="description">{{ item.description }}</p>
 </article>
 {% endblock %}

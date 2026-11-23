@@ -14,11 +14,11 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, abort, jsonify)
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, Favorite, Road, Watchlist, HazardReport
+from models import db, User, Favorite, Road, Watchlist, HazardReport, Note
 import api_client
 from validators import (validate_signup, validate_login,
                         validate_road_search, validate_report_location)
-from validators_reports import validate_report_description
+from validators_reports import validate_report_description, validate_note_content
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
@@ -298,7 +298,16 @@ def get_owned_report(report_id):
         abort(404)
     if report.user_id != session["user_id"]:
         abort(403)
-    return report
+    return report 
+
+def get_owned_note(note_id):
+    """Load a note, or stop with 404 (missing) / 403 (not the author)."""
+    note = db.session.get(Note, note_id)
+    if note is None:
+        abort(404)
+    if note.user_id != session["user_id"]:
+        abort(403)
+    return note    
 
 @app.route("/api/reports")
 def api_reports():
@@ -355,9 +364,10 @@ def report_detail(report_id):
         abort(404)
     regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
     is_owner = "user_id" in session and report.user_id == session["user_id"]
+    notes = (Note.query.filter_by(report_id=report.id)
+             .order_by(Note.created_at.asc()).all())
     return render_template("report_detail.html", report=report,
-                           regions=regions, is_owner=is_owner)
-
+                           regions=regions, is_owner=is_owner, notes=notes)
 
 @app.route("/reports/<int:report_id>/edit", methods=["GET", "POST"])
 @login_required
@@ -396,6 +406,51 @@ def report_delete(report_id):
     db.session.commit()
     flash("Report deleted.")
     return redirect(url_for("reports"))
+
+@app.route("/reports/<int:report_id>/notes", methods=["POST"])
+@login_required
+def note_add(report_id):
+    report = db.session.get(HazardReport, report_id)
+    if report is None:
+        abort(404)
+    errors, content = validate_note_content(request.form)
+    if errors:
+        flash(errors["content"])
+    else:
+        db.session.add(Note(report_id=report.id, user_id=session["user_id"],
+                            content=content))
+        db.session.commit()
+        flash("Note added.")
+    return redirect(url_for("report_detail", report_id=report.id))
+
+
+@app.route("/notes/<int:note_id>/edit", methods=["GET", "POST"])
+@login_required
+def note_edit(note_id):
+    note = get_owned_note(note_id)
+    if request.method == "POST":
+        errors, content = validate_note_content(request.form)
+        if errors:
+            data = {"content": request.form.get("content", "")}
+            return render_template("note_form.html", note=note,
+                                   errors=errors, data=data), 400
+        note.content = content
+        db.session.commit()
+        flash("Note updated.")
+        return redirect(url_for("report_detail", report_id=note.report_id))
+    return render_template("note_form.html", note=note, errors={},
+                           data={"content": note.content})
+
+
+@app.route("/notes/<int:note_id>/delete", methods=["POST"])
+@login_required
+def note_delete(note_id):
+    note = get_owned_note(note_id)
+    report_id = note.report_id
+    db.session.delete(note)
+    db.session.commit()
+    flash("Note deleted.")
+    return redirect(url_for("report_detail", report_id=report_id))    
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -18,5 +18,32 @@
     <button type="submit">Delete</button>
   </form>
 {% endif %}
+<h2>Status notes</h2>
+{% if notes %}
+  {% for n in notes %}
+    <div class="card">
+      <p>{{ n.content }}</p>
+      <small>{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+      {% if current_user and current_user.id == n.user_id %}
+        <p><a href="{{ url_for('note_edit', note_id=n.id) }}">Edit</a></p>
+        <form method="post" action="{{ url_for('note_delete', note_id=n.id) }}"
+              onsubmit="return confirm('Delete this note?');">
+          <button type="submit">Delete</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% else %}
+  <p>No notes yet.</p>
+{% endif %}
+
+{% if current_user %}
+  <form method="post" action="{{ url_for('note_add', report_id=report.id) }}">
+    <label>Add a note <textarea name="content" rows="3"></textarea></label>
+    <button type="submit">Add note</button>
+  </form>
+{% else %}
+  <p><a href="{{ url_for('login') }}">Log in</a> to add a note.</p>
+{% endif %}
 <p><a href="{{ url_for('reports') }}">Back to all reports</a></p>
 {% endblock %}

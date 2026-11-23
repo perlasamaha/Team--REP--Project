@@ -18,6 +18,36 @@
     <button type="submit">Delete</button>
   </form>
 {% endif %}
+
+<h2>Photos</h2>
+{% if report.images %}
+  {% for img in report.images %}
+    <div class="card">
+      <img src="{{ img.image_url }}" alt="Photo of the reported pothole"
+           loading="lazy" style="max-width:100%;height:auto;">
+      {% if is_owner %}
+        <form method="post"
+              action="{{ url_for('report_image_delete', report_id=report.id, image_id=img.id) }}"
+              onsubmit="return confirm('Remove this photo?');">
+          <button type="submit">Remove photo</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% else %}
+  <p>No photos yet.</p>
+{% endif %}
+
+{% if is_owner and report.images|length < 3 %}
+  <form method="post" action="{{ url_for('report_image_add', report_id=report.id) }}"
+        enctype="multipart/form-data">
+    <label>Add a photo
+      <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+    </label>
+    <button type="submit">Upload</button>
+  </form>
+{% endif %}
+
 <h2>Status notes</h2>
 {% if notes %}
   {% for n in notes %}

@@ -19,7 +19,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import api_client
 from models import db, User, Favorite, Road, Watchlist, HazardReport, Note, ReportImage
 from validators import (validate_signup, validate_login,
-                        validate_road_search, validate_report_location)
+                        validate_road_search, validate_report_location,
+                        validate_point)
 from validators_reports import (validate_report_description, validate_note_content,
                                 validate_image_file, MAX_IMAGES_PER_REPORT)
 
@@ -109,6 +110,32 @@ def road_detail(osm_type, osm_id):
         flash(str(e))
         return redirect(url_for("home"))
     return render_template("detail.html", road=road)
+
+
+@app.route("/api/locate")
+def api_locate():
+    """Region and nearest road for a point (used by 'Use my location')."""
+    errors, params = validate_point(request.args.get("lat"),
+                                    request.args.get("lon"))
+    if errors:
+        return jsonify({"errors": errors}), 400
+
+    lat, lon = params["latitude"], params["longitude"]
+    region = api_client.find_region(lat, lon)
+    found = api_client.nearest_road(region, lat, lon) if region else None
+
+    road = None
+    if found:
+        road_data, distance = found
+        road = {key: road_data[key]
+                for key in ("osm_id", "name", "name_ar", "ref", "highway")}
+        road["distance_m"] = distance
+
+    return jsonify({
+        "region": region,
+        "region_label": api_client.REGIONS[region]["label"] if region else None,
+        "road": road,
+    })
 
 
 # ===================================================================

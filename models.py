@@ -64,6 +64,8 @@ class HazardReport(db.Model):
     road = db.relationship("Road", backref="reports")
     notes = db.relationship("Note", backref="report",
                             cascade="all, delete-orphan")
+    images = db.relationship("ReportImage", backref="report",
+                             cascade="all, delete-orphan")                        
 
 
 class Note(db.Model):
@@ -75,3 +77,11 @@ class Note(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
                            onupdate=datetime.utcnow)                                          
+
+class ReportImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    report_id = db.Column(db.Integer, db.ForeignKey("hazard_report.id"),
+                          nullable=False)
+    image_url = db.Column(db.String(500), nullable=False)
+    file_id = db.Column(db.String(100), nullable=False)
+    uploaded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

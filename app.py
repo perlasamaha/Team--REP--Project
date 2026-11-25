@@ -8,17 +8,20 @@ email + password with Flask sessions.
 Run locally:   flask run --debug    ->   http://127.0.0.1:5000
 """
 import os
+import uuid
 from functools import wraps
 
+import requests
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, abort, jsonify)
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, Favorite, Road, Watchlist, HazardReport
 import api_client
+from models import db, User, Favorite, Road, Watchlist, HazardReport, Note, ReportImage
 from validators import (validate_signup, validate_login,
                         validate_road_search, validate_report_location)
-from validators_reports import validate_report_description
+from validators_reports import (validate_report_description, validate_note_content,
+                                validate_image_file, MAX_IMAGES_PER_REPORT)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
@@ -38,6 +41,7 @@ def database_uri():
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_uri()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024  # whole request, in bytes
 db.init_app(app)
 with app.app_context():
     db.create_all()
@@ -298,7 +302,45 @@ def get_owned_report(report_id):
         abort(404)
     if report.user_id != session["user_id"]:
         abort(403)
-    return report
+    return report 
+
+def get_owned_note(note_id):
+    """Load a note, or stop with 404 (missing) / 403 (not the author)."""
+    note = db.session.get(Note, note_id)
+    if note is None:
+        abort(404)
+    if note.user_id != session["user_id"]:
+        abort(403)
+    return note    
+
+IMAGEKIT_UPLOAD_URL = "https://upload.imagekit.io/api/v1/files/upload"
+IMAGEKIT_FILES_URL = "https://api.imagekit.io/v1/files/"
+
+
+def upload_to_imagekit(file, ext):
+    """Upload one validated photo. Returns (url, file_id). Raises RuntimeError."""
+    key = os.environ.get("IMAGEKIT_PRIVATE_KEY", "")
+    name = f"{uuid.uuid4().hex}.{ext}"
+    try:
+        r = requests.post(
+            IMAGEKIT_UPLOAD_URL, auth=(key, ""), timeout=20,
+            files={"file": (name, file.stream)},
+            data={"fileName": name, "folder": "/tari2na/reports",
+                  "useUniqueFileName": "true"})
+        r.raise_for_status()
+        data = r.json()
+        return data["url"], data["fileId"]
+    except (requests.RequestException, ValueError, KeyError) as e:
+        raise RuntimeError("ImageKit upload failed") from e
+
+
+def delete_remote_image(file_id):
+    """Best effort: the database stays the source of truth if this fails."""
+    key = os.environ.get("IMAGEKIT_PRIVATE_KEY", "")
+    try:
+        requests.delete(IMAGEKIT_FILES_URL + file_id, auth=(key, ""), timeout=10)
+    except requests.RequestException:
+        app.logger.exception("Could not delete %s from ImageKit", file_id)
 
 @app.route("/api/reports")
 def api_reports():
@@ -355,9 +397,10 @@ def report_detail(report_id):
         abort(404)
     regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
     is_owner = "user_id" in session and report.user_id == session["user_id"]
+    notes = (Note.query.filter_by(report_id=report.id)
+             .order_by(Note.created_at.asc()).all())
     return render_template("report_detail.html", report=report,
-                           regions=regions, is_owner=is_owner)
-
+                           regions=regions, is_owner=is_owner, notes=notes)
 
 @app.route("/reports/<int:report_id>/edit", methods=["GET", "POST"])
 @login_required
@@ -392,10 +435,106 @@ def report_edit(report_id):
 @login_required
 def report_delete(report_id):
     report = get_owned_report(report_id)
+    file_ids = [img.file_id for img in report.images]
     db.session.delete(report)
     db.session.commit()
+    for file_id in file_ids:
+        delete_remote_image(file_id)
     flash("Report deleted.")
     return redirect(url_for("reports"))
+
+@app.route("/reports/<int:report_id>/notes", methods=["POST"])
+@login_required
+def note_add(report_id):
+    report = db.session.get(HazardReport, report_id)
+    if report is None:
+        abort(404)
+    errors, content = validate_note_content(request.form)
+    if errors:
+        flash(errors["content"])
+    else:
+        db.session.add(Note(report_id=report.id, user_id=session["user_id"],
+                            content=content))
+        db.session.commit()
+        flash("Note added.")
+    return redirect(url_for("report_detail", report_id=report.id))
+
+
+@app.route("/notes/<int:note_id>/edit", methods=["GET", "POST"])
+@login_required
+def note_edit(note_id):
+    note = get_owned_note(note_id)
+    if request.method == "POST":
+        errors, content = validate_note_content(request.form)
+        if errors:
+            data = {"content": request.form.get("content", "")}
+            return render_template("note_form.html", note=note,
+                                   errors=errors, data=data), 400
+        note.content = content
+        db.session.commit()
+        flash("Note updated.")
+        return redirect(url_for("report_detail", report_id=note.report_id))
+    return render_template("note_form.html", note=note, errors={},
+                           data={"content": note.content})
+
+
+@app.route("/notes/<int:note_id>/delete", methods=["POST"])
+@login_required
+def note_delete(note_id):
+    note = get_owned_note(note_id)
+    report_id = note.report_id
+    db.session.delete(note)
+    db.session.commit()
+    flash("Note deleted.")
+    return redirect(url_for("report_detail", report_id=report_id))   
+
+@app.errorhandler(413)
+def too_large(e):
+    flash("That upload is too large.")
+    return redirect(url_for("reports"))  
+
+@app.route("/reports/<int:report_id>/images", methods=["POST"])
+@login_required
+def report_image_add(report_id):
+    report = get_owned_report(report_id)
+    back = redirect(url_for("report_detail", report_id=report.id))
+    if not os.environ.get("IMAGEKIT_PRIVATE_KEY"):
+        flash("Photo uploads are not configured on this server.")
+        return back
+    if len(report.images) >= MAX_IMAGES_PER_REPORT:
+        flash(f"A report can have at most {MAX_IMAGES_PER_REPORT} photos.")
+        return back
+    file = request.files.get("photo")
+    error, ext = validate_image_file(file)
+    if error:
+        flash(error)
+        return back
+    try:
+        url, file_id = upload_to_imagekit(file, ext)
+    except RuntimeError:
+        app.logger.exception("ImageKit upload failed")
+        flash("The photo could not be uploaded. Please try again later.")
+        return back
+    db.session.add(ReportImage(report_id=report.id, image_url=url,
+                               file_id=file_id))
+    db.session.commit()
+    flash("Photo added.")
+    return back
+
+
+@app.route("/reports/<int:report_id>/images/<int:image_id>/delete", methods=["POST"])
+@login_required
+def report_image_delete(report_id, image_id):
+    report = get_owned_report(report_id)
+    image = db.session.get(ReportImage, image_id)
+    if image is None or image.report_id != report.id:
+        abort(404)
+    file_id = image.file_id
+    db.session.delete(image)
+    db.session.commit()
+    delete_remote_image(file_id)
+    flash("Photo removed.")
+    return redirect(url_for("report_detail", report_id=report.id))       
 
 if __name__ == "__main__":
     app.run(debug=True)

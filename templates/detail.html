@@ -20,20 +20,18 @@
   </dl>
 
   <!-- The favorites forms below belong to Rebecca: her route decides the field names. -->
-  {% if current_user %}
-    {% if road.osm_id in favorite_ids %}
-      <form method="post" action="{{ url_for('favorites_remove') }}">
-        <input type="hidden" name="item_id" value="{{ road.osm_id }}">
+
+    {% if current_user %}
+    {% if road.osm_id in watchlist_by_osm %}
+      <form method="post" action="{{ url_for('watchlist_delete', entry_id=watchlist_by_osm[road.osm_id]) }}">
         <input type="hidden" name="next" value="{{ request.path }}">
-        <button class="btn remove">Remove from favorites</button>
+        <button class="btn remove">Remove from watchlist</button>
       </form>
     {% else %}
-      <form method="post" action="{{ url_for('favorites_add') }}">
-        <input type="hidden" name="item_id" value="{{ road.osm_id }}">
-        <input type="hidden" name="item_title" value="{{ road.name or road.name_ar or road.ref or 'Unnamed road' }}">
-        <input type="hidden" name="item_image" value="">
+      <form method="post" action="{{ url_for('watchlist_add') }}">
+        <input type="hidden" name="osm_id" value="{{ road.osm_id }}">
         <input type="hidden" name="next" value="{{ request.path }}">
-        <button class="btn save">Save to favorites</button>
+        <button class="btn save">Save to watchlist</button>
       </form>
     {% endif %}
   {% else %}

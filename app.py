@@ -1,11 +1,12 @@
 """
-<YOUR PROJECT NAME> -- a Flask web app (team project starter).
+Tari2na -- Lebanese road conditions and hazard reporting (Flask web app).
 
-Content comes from an external API (see api_client.py). The only data stored
-is user accounts and their favorites (see models.py). Authentication is
-email + password with Flask sessions.
+Road data comes from the Overpass API (see api_client.py). The app stores user
+accounts, watchlists, hazard reports, notes and photo references (see models.py).
+Authentication is email + password with Flask sessions.
 
 Run locally:   flask run --debug    ->   http://127.0.0.1:5000
+
 """
 import os
 import uuid
@@ -17,7 +18,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import api_client
-from models import db, User, Favorite, Road, Watchlist, HazardReport, Note, ReportImage
+from models import db, User, Road, Watchlist, HazardReport, Note, ReportImage
 from validators import (validate_signup, validate_login,
                         validate_road_search, validate_report_location)
 from validators_reports import (validate_report_description, validate_note_content,
@@ -50,16 +51,13 @@ with app.app_context():
 @app.context_processor
 def inject_globals():
     user = None
-    favorite_ids = set()
     watchlist_by_osm = {}
     if "user_id" in session:
         user = db.session.get(User, session["user_id"])
         if user:
-            favorite_ids = {f.item_id for f in user.favorites}
             watchlist_by_osm = {w.road.osm_id: w.id for w in user.watchlist
                                 if w.road.element_type == "way"}
-    return {"current_user": user, "favorite_ids": favorite_ids,
-            "watchlist_by_osm": watchlist_by_osm}
+    return {"current_user": user, "watchlist_by_osm": watchlist_by_osm}
 
 
 def login_required(view):
@@ -111,13 +109,7 @@ def road_detail(osm_type, osm_id):
     return render_template("detail.html", road=road)
 
 
-# ===================================================================
-# AUTHENTICATION  --  YOU BUILD THIS (sign-up, log-in, log-out, sessions)
-# ===================================================================
-# This is YOUR work. The routes below are stubs. Implement them using what
-# you learned in the "Sessions & Login" slides. Tools already imported for
-# you at the top: generate_password_hash, check_password_hash, session,
-# and the validators validate_signup / validate_login.
+# ---------- authentication (signup, login, logout) ----------
 #
 # What each route should do:
 #   signup (POST): validate the form; reject an email that already exists;
@@ -126,7 +118,7 @@ def road_detail(osm_type, osm_id):
 #   login  (POST): validate; find the user by email; check_password_hash;
 #                  on success store session["user_id"]; else show an error.
 #   logout        : session.clear(); redirect home.
-# A worked version of favorites below shows how session["user_id"] is used.
+
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -181,44 +173,6 @@ def logout():
     return redirect(url_for("home"))
 
 
-# ---------- favorites (login required) -----------------------------
-@app.route("/favorites")
-@login_required
-def favorites():
-    items = Favorite.query.filter_by(user_id=session["user_id"]).all()
-    return render_template("favorites.html", favorites=items)
-
-
-@app.route("/favorites/add", methods=["POST"])
-@login_required
-def favorites_add():
-    item_id = request.form.get("item_id", "").strip()
-    if item_id:
-        exists = Favorite.query.filter_by(
-            user_id=session["user_id"], item_id=item_id).first()
-        if exists:
-            flash("Already in your favorites.")
-        else:
-            db.session.add(Favorite(
-                user_id=session["user_id"], item_id=item_id,
-                item_title=request.form.get("item_title", ""),
-                item_image=request.form.get("item_image", "")))
-            db.session.commit()
-            flash("Saved to favorites.")
-    return redirect(request.form.get("next") or url_for("favorites"))
-
-
-@app.route("/favorites/remove", methods=["POST"])
-@login_required
-def favorites_remove():
-    item_id = request.form.get("item_id", "").strip()
-    fav = Favorite.query.filter_by(
-        user_id=session["user_id"], item_id=item_id).first()
-    if fav:
-        db.session.delete(fav)
-        db.session.commit()
-        flash("Removed from favorites.")
-    return redirect(request.form.get("next") or url_for("favorites"))
 
 def safe_next(default_endpoint):
     """Redirect target from a form, only if it is a path on this site."""

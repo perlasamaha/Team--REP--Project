@@ -4,12 +4,12 @@ Raw OpenStreetMap data goes in, clean dictionaries come out.
 """
 import json
 import logging
+import math
 import re
 import time
 from pathlib import Path
 
 import requests
-
 OVERPASS_SERVERS = [
     ("https://overpass-api.de/api/interpreter", 8),
     ("https://api.overpass-turbo.eu/interpreter", 20),
@@ -176,6 +176,42 @@ def normalize_way(el):
         "coordinates": [[p["lat"], p["lon"]] for p in el.get("geometry", [])],
         "center": center,
     }
+
+
+def find_region(lat, lon):
+    """Return the key of the region whose box contains the point, or None."""
+    for key, info in REGIONS.items():
+        south, west, north, east = info["bbox"]
+        if south <= lat <= north and west <= lon <= east:
+            return key
+    return None
+
+
+METERS_PER_DEGREE = 111_320   # length of one degree of latitude, in metres
+MAX_ROAD_DISTANCE = 300       # metres; farther than this means "no road nearby"
+
+
+def _distance_m(lat1, lon1, lat2, lon2):
+    """Approximate distance in metres between two close points."""
+    dy = (lat2 - lat1) * METERS_PER_DEGREE
+    dx = (lon2 - lon1) * METERS_PER_DEGREE * math.cos(math.radians(lat1))
+    return math.hypot(dx, dy)
+
+
+def nearest_road(region, lat, lon):
+    """Return (road, metres) for the closest cached road, or None."""
+    entry = _cache.get((region, False))
+    if not entry:
+        return None
+    best_road, best_dist = None, None
+    for road in entry[1]:
+        for plat, plon in road["coordinates"]:
+            d = _distance_m(lat, lon, plat, plon)
+            if best_dist is None or d < best_dist:
+                best_road, best_dist = road, d
+    if best_dist is None or best_dist > MAX_ROAD_DISTANCE:
+        return None
+    return best_road, round(best_dist)
 
 
 def get_roads(region, include_service=False):

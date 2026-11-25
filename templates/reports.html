@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Community reports{% endblock %}
+{% block content %}
+<h1>Community reports</h1>
+<p>These are reports from users. They are not verified.</p>
+
+<form method="get" action="{{ url_for('reports') }}">
+  <select name="region">
+    <option value="">All regions</option>
+    {% for key, label in regions.items() %}
+      <option value="{{ key }}" {% if selected == key %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit">Filter</button>
+</form>
+
+{% if current_user %}
+  <p><a href="{{ url_for('report_new') }}">Report a pothole</a></p>
+{% endif %}
+
+{% if reports %}
+  <div class="cards">
+    {% for r in reports %}
+      <div class="card">
+        <a href="{{ url_for('report_detail', report_id=r.id) }}">
+          <strong>{{ regions.get(r.region, r.region) }}</strong> ({{ r.severity }})
+        </a>
+        <p>{{ r.description|truncate(120) }}</p>
+        <small>{{ r.status }} · {{ r.created_at.strftime('%Y-%m-%d') }}</small>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>No reports yet.</p>
+{% endif %}
+{% endblock %}

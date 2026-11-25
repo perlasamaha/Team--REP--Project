@@ -5,155 +5,246 @@
 
 {% block content %}
 
-<h1>Welcome to Tari2na</h1>
-<p>Explore roads and report potholes across Lebanon.</p>
-
-<!-- Road search form -->
-<form id="road-search-form" class="search">
-
-    <!-- Region selection -->
-    <label for="region">Select a region:</label>
-
-    <select id="region" name="region" required>
-        <option value="">Choose a region</option>
-
-        {% for key, label in regions.items() %}
-            <option value="{{ key }}">{{ label }}</option>
-        {% endfor %}
-    </select>
-
-    <!-- Button to select the user's current location -->
-<button type="button" id="use-my-location">
-    Use My Location
-</button>
-
-    <!-- Road name search -->
-    <label for="road-name">Road name:</label>
-
-    <input
-        type="text"
-        id="road-name"
-        name="name"
-        placeholder="Enter road name"
-    >
-
-    <!-- Optional road surface filter -->
-    <label for="surface">Select road surface (optional):</label>
-
-    <select id="surface" name="surface">
-        <option value="">All surfaces</option>
-        <option value="asphalt">Asphalt</option>
-        <option value="concrete">Concrete</option>
-        <option value="paved">Paved</option>
-        <option value="unpaved">Unpaved</option>
-        <option value="gravel">Gravel</option>
-        <option value="unknown">Not tagged</option>
-    </select>
-
-    <!-- Optional service roads checkbox -->
-    <label for="include-service">Include service roads</label>
-
-    <input
-        type="checkbox"
-        id="include-service"
-        name="include_service"
-        value="1"
-    >
-
-    <!-- Submit road search -->
-    <!-- Submit road search -->
-<button type="submit" id="search-roads-button">Search Roads</button>
-
-</form>
-
-<!-- Display road search results or API error messages -->
-<p id="road-status" role="status" aria-live="polite"></p>
-
-<!-- Interactive map displaying roads and potholes -->
-<div id="map"></div>
+<!-- Homepage introduction -->
+<section class="home-intro">
+    <h1>Welcome to Tari2na</h1>
+    <p>
+        Explore roads across Lebanon, discover reported
+        potholes, and help make our roads safer.
+    </p>
+</section>
 
 
-<!-- Pothole reporting section -->
+<!-- ====================================
+     ROAD EXPLORATION DASHBOARD
+==================================== -->
+
+<section class="explore-layout">
+
+    <!-- LEFT PANEL: Road search -->
+    <div class="search-panel">
+
+        <div class="panel-heading">
+            <h2>Explore Roads</h2>
+            <p>
+                Find roads by region, name, and surface type.
+            </p>
+        </div>
+
+        <form id="road-search-form" class="search">
+
+            <!-- Region selection -->
+            <label for="region">Select a region</label>
+
+            <select id="region" name="region" required>
+                <option value="">Choose a region</option>
+
+                {% for key, label in regions.items() %}
+                    <option value="{{ key }}">
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+
+
+            <!-- Current location -->
+            <button type="button" id="use-my-location">
+                Use My Location
+            </button>
+
+
+            <!-- Road name -->
+            <label for="road-name">Road name</label>
+
+            <input
+                type="text"
+                id="road-name"
+                name="name"
+                placeholder="Enter road name"
+            >
+
+
+            <!-- Road surface -->
+            <label for="surface">
+                Road surface (optional)
+            </label>
+
+            <select id="surface" name="surface">
+                <option value="">All surfaces</option>
+                <option value="asphalt">Asphalt</option>
+                <option value="concrete">Concrete</option>
+                <option value="paved">Paved</option>
+                <option value="unpaved">Unpaved</option>
+                <option value="gravel">Gravel</option>
+                <option value="unknown">Not tagged</option>
+            </select>
+
+
+            <!-- Service roads -->
+            <div class="checkbox-row">
+
+                <input
+                    type="checkbox"
+                    id="include-service"
+                    name="include_service"
+                    value="1"
+                >
+
+                <label for="include-service">
+                    Include service roads
+                </label>
+
+            </div>
+
+
+            <!-- Search button -->
+            <button
+                type="submit"
+                id="search-roads-button"
+            >
+                Search Roads
+            </button>
+
+        </form>
+
+
+        <!-- Road search feedback -->
+        <p
+            id="road-status"
+            role="status"
+            aria-live="polite"
+        ></p>
+
+    </div>
+
+
+    <!-- RIGHT PANEL: Interactive map -->
+    <div class="map-panel">
+
+        <div class="panel-heading">
+            <h2>Interactive Road Map</h2>
+            <p>
+                Explore roads and reported potholes.
+                Click the map to select a pothole location.
+            </p>
+        </div>
+
+        <div id="map"></div>
+
+    </div>
+
+</section>
+
+
+<!-- ====================================
+     POTHOLE REPORTING SECTION
+==================================== -->
+
 <section id="report-section">
 
     <h2>Report a Pothole</h2>
 
     <p>
-        Found a pothole? Submit a report to help other drivers.
+        Spotted a pothole? Share its location and details
+        to help other drivers stay informed.
     </p>
 
-    <!-- Form for submitting a new pothole report -->
+
     <form id="pothole-report-form">
 
-      <!-- Display the selected pothole location -->
-<p id="selected-location-status" role="status" aria-live="polite">
-    No location selected. Click on the map to choose a pothole location.
-</p>
+        <!-- Selected location status -->
+        <p
+            id="selected-location-status"
+            role="status"
+            aria-live="polite"
+        >
+            No location selected. Click on the map
+            to choose a pothole location.
+        </p>
 
 
+        <!-- Pothole description -->
+        <div class="report-field report-field-wide">
 
-<!-- Pothole description -->
-<label for="pothole-description">Describe the pothole:</label>
+            <label for="pothole-description">
+                Describe the pothole
+            </label>
 
-<textarea
-    id="pothole-description"
-    name="description"
-    rows="4"
-    placeholder="Describe the pothole and its condition"
-    required
-></textarea>
+            <textarea
+                id="pothole-description"
+                name="description"
+                rows="4"
+                placeholder="Describe the pothole and its condition"
+                required
+            ></textarea>
 
-
-<!-- Pothole severity selection -->
-<label for="pothole-severity">Select pothole severity:</label>
-
-<select
-    id="pothole-severity"
-    name="severity"
-    required
->
-    <option value="">Choose severity</option>
-    <option value="low">Low</option>
-    <option value="medium">Medium</option>
-    <option value="high">High</option>
-</select>
+        </div>
 
 
-<!-- Pothole photo upload -->
-<label for="pothole-photo">Upload a photo of the pothole:</label>
+        <!-- Pothole severity -->
+        <div class="report-field">
 
-<input
-    type="file"
-    id="pothole-photo"
-    name="photo"
-    accept="image/*"
-    capture="environment"
->
+            <label for="pothole-severity">
+                Pothole severity
+            </label>
 
+            <select
+                id="pothole-severity"
+                name="severity"
+                required
+            >
+                <option value="">Choose severity</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+            </select>
 
-<!-- Store the selected pothole location -->
-<input
-    type="hidden"
-    id="pothole-latitude"
-    name="latitude"
->
-
-<input
-    type="hidden"
-    id="pothole-longitude"
-    name="longitude"
->
+        </div>
 
 
-<!-- Submit the pothole report -->
-<button type="submit" id="submit-pothole-button">
-    Submit Pothole Report
-</button>
+        <!-- Photo upload -->
+        <div class="report-field">
+
+            <label for="pothole-photo">
+                Upload a photo (optional)
+            </label>
+
+            <input
+                type="file"
+                id="pothole-photo"
+                name="photo"
+                accept="image/*"
+                capture="environment"
+            >
+
+        </div>
+
+
+        <!-- Hidden location coordinates -->
+        <input
+            type="hidden"
+            id="pothole-latitude"
+            name="latitude"
+        >
+
+        <input
+            type="hidden"
+            id="pothole-longitude"
+            name="longitude"
+        >
+
+
+        <!-- Submit report -->
+        <button
+            type="submit"
+            id="submit-pothole-button"
+        >
+            Submit Pothole Report
+        </button>
 
     </form>
 
 </section>
-
 
 {% endblock %}
 

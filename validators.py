@@ -92,3 +92,17 @@ def validate_report_location(lat, lon, region, severity):
     params = {"latitude": lat, "longitude": lon,
               "region": region, "severity": severity}
     return errors, params
+
+
+def validate_point(lat, lon):
+    """Check a latitude/longitude pair sent by the browser."""
+    errors = {}
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError):
+        errors["location"] = "Latitude and longitude must be numbers."
+    else:
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            errors["location"] = "Latitude or longitude is out of range."
+    return errors, {"latitude": lat, "longitude": lon}

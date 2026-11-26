@@ -1,34 +1,1197 @@
-:root { --navy:#1f3864; --blue:#2e74b5; --bg:#f6f8fb; --line:#dbe3ee; --err:#c0392b; }
-* { box-sizing: border-box; }
-body { margin:0; font-family: system-ui, Segoe UI, Calibri, sans-serif; color:#1f2937; background:#fff; }
-.nav { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem;
-       padding:.8rem 1.2rem; background:var(--navy); color:#fff; }
-.nav .brand { color:#fff; font-weight:700; font-size:1.2rem; text-decoration:none; }
-.nav nav a { color:#dbe6ff; text-decoration:none; margin-left:1rem; }
-.nav nav a:hover { color:#fff; }
-.nav .who { margin-left:1rem; color:#9db7e8; font-size:.9rem; }
-.container { max-width:980px; margin:0 auto; padding:1.5rem 1.2rem; }
-h1 { color:var(--navy); }
-.hint { color:#64748b; font-size:.95rem; }
-.hint code { background:#eef2f7; padding:.1rem .35rem; border-radius:4px; }
-.flash { background:#eaf1fb; border:1px solid #c9ddf5; border-radius:8px; padding:.5rem .9rem; margin-bottom:1rem; }
-.flash p { margin:.2rem 0; }
-.error { color:var(--err); display:block; margin:.2rem 0 .6rem; }
-.search { display:flex; gap:.5rem; margin:1rem 0; }
-.search input { flex:1; padding:.6rem .8rem; border:1px solid var(--line); border-radius:8px; font-size:1rem; }
-.search button, .btn, button[type=submit] { background:var(--blue); color:#fff; border:0; padding:.6rem 1rem;
-       border-radius:8px; font-size:1rem; cursor:pointer; text-decoration:none; display:inline-block; }
-.search button:hover, .btn:hover { background:var(--navy); }
-.btn.remove { background:#c0392b; } .btn.save { background:#2e7d32; }
-.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:1rem; margin-top:1rem; }
-.card { background:var(--bg); border:1px solid var(--line); border-radius:10px; overflow:hidden;
-        text-decoration:none; color:#1f2937; display:flex; flex-direction:column; }
-.card img { width:100%; height:150px; object-fit:cover; display:block; }
-.card span { padding:.6rem; font-weight:600; }
-.card form { padding:0 .6rem .6rem; }
-.detail .hero { max-width:420px; width:100%; border-radius:12px; margin:.5rem 0 1rem; }
-.description { line-height:1.6; }
-.auth { display:flex; flex-direction:column; gap:.3rem; max-width:360px; }
-.auth label { display:flex; flex-direction:column; font-weight:600; margin-top:.6rem; }
-.auth input { padding:.55rem .7rem; border:1px solid var(--line); border-radius:8px; font-size:1rem; }
-.auth button { margin-top:1rem; }
+
+/* =========================================
+   TARI2NA — EARTHY MODERN DESIGN
+   Complete Shared Website Stylesheet
+========================================= */
+
+:root {
+    --forest: #263f35;
+    --forest-dark: #1d322a;
+    --green: #587562;
+    --sage: #a8b9a1;
+    --sage-light: #e8eee5;
+
+    --cream: #f5f1e8;
+    --sand: #e9dfce;
+    --white: #ffffff;
+
+    --terracotta: #b87457;
+    --terracotta-dark: #96553d;
+
+    --text: #29372f;
+    --muted: #69766c;
+    --line: #dbe2d6;
+    --error: #b64f46;
+
+    --shadow: 0 6px 24px rgba(38, 63, 53, 0.07);
+    --shadow-hover: 0 12px 30px rgba(38, 63, 53, 0.12);
+
+    --radius: 16px;
+    --radius-small: 9px;
+
+    /* Compatibility */
+    --navy: var(--forest);
+    --blue: var(--green);
+    --bg: var(--cream);
+    --err: var(--error);
+}
+
+/* =========================================
+   GENERAL
+========================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", system-ui, Arial, sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    color: var(--forest);
+    line-height: 1.3;
+}
+
+h1 {
+    font-size: clamp(1.9rem, 4vw, 2.7rem);
+}
+
+h2 {
+    font-size: 1.5rem;
+}
+
+p {
+    line-height: 1.7;
+}
+
+a {
+    color: var(--green);
+}
+
+a:hover {
+    color: var(--forest-dark);
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+:focus-visible {
+    outline: 3px solid var(--terracotta);
+    outline-offset: 3px;
+}
+
+/* =========================================
+   NAVIGATION BAR
+========================================= */
+
+.nav {
+    background: var(--forest);
+    padding: 16px max(24px, calc((100% - 1380px) / 2));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 18px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+}
+
+.nav .brand {
+    color: var(--white);
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.7px;
+    text-decoration: none;
+}
+
+.nav .brand:hover {
+    color: var(--sage);
+}
+
+.nav nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.nav nav a {
+    color: #f0f5ed;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.94rem;
+    border-radius: 8px;
+    padding: 9px 12px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.nav nav a:hover {
+    background: rgba(255, 255, 255, 0.13);
+    color: var(--white);
+}
+
+.nav .who {
+    color: #d4e1d2;
+    font-size: 0.83rem;
+    padding: 6px 10px;
+    overflow-wrap: anywhere;
+}
+
+/* =========================================
+   MAIN CONTAINER
+========================================= */
+
+.container {
+    width: min(100% - 40px, 1380px);
+    margin: 0 auto;
+    padding: 38px 0 70px;
+}
+
+/* =========================================
+   HOMEPAGE INTRODUCTION
+========================================= */
+
+.home-intro {
+    margin-bottom: 30px;
+}
+
+.home-intro h1 {
+    margin: 0 0 10px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+}
+
+.home-intro p {
+    font-size: 1.06rem;
+    color: var(--muted);
+    margin: 0;
+    max-width: 760px;
+}
+
+/* =========================================
+   EXPLORATION DASHBOARD
+========================================= */
+
+.explore-layout {
+    display: grid;
+    grid-template-columns:
+        minmax(290px, 360px)
+        minmax(0, 1fr);
+    gap: 24px;
+    align-items: stretch;
+    margin-top: 24px;
+}
+
+.search-panel,
+.map-panel,
+#report-section {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.search-panel {
+    padding: 26px;
+    min-width: 0;
+}
+
+.map-panel {
+    padding: 18px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-heading {
+    margin-bottom: 22px;
+}
+
+.panel-heading h2 {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+}
+
+.panel-heading p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+/* =========================================
+   ROAD SEARCH FORM
+========================================= */
+
+.search {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin: 0;
+}
+
+.search label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 650;
+    color: var(--forest);
+    margin-top: 10px;
+}
+
+.search label:first-child {
+    margin-top: 0;
+}
+
+.search input[type="text"],
+.search select {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-small);
+    background: #fcfdfb;
+    color: var(--text);
+    font-size: 0.95rem;
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s;
+}
+
+.search input[type="text"]:focus,
+.search select:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(88, 117, 98, 0.12);
+    outline: none;
+}
+
+.search input::placeholder,
+textarea::placeholder {
+    color: #8a958c;
+}
+
+/* =========================================
+   SERVICE ROADS CHECKBOX
+========================================= */
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 13px 0;
+    margin-top: 8px;
+}
+
+.checkbox-row label {
+    margin: 0;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--green);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* =========================================
+   BUTTONS
+========================================= */
+
+button[type="submit"],
+.btn,
+#search-roads-button,
+#submit-pothole-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    background: var(--forest);
+    color: var(--white);
+
+    border: 1px solid transparent;
+    border-radius: var(--radius-small);
+
+    padding: 12px 20px;
+    font-weight: 650;
+
+    text-decoration: none;
+    text-align: center;
+
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+button[type="submit"]:not(:disabled):hover,
+.btn:hover,
+#search-roads-button:not(:disabled):hover,
+#submit-pothole-button:not(:disabled):hover {
+    background: var(--green);
+    color: var(--white);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(38, 63, 53, 0.16);
+}
+
+#search-roads-button {
+    width: 100%;
+    min-height: 46px;
+    margin-top: 10px;
+}
+
+#use-my-location {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--sage-light);
+    color: var(--forest);
+
+    border: 1px solid var(--sage);
+    border-radius: var(--radius-small);
+
+    font-weight: 650;
+    margin: 5px 0 8px;
+
+    transition:
+        background 0.2s,
+        transform 0.2s;
+}
+
+#use-my-location:hover {
+    background: #d5e3d1;
+    transform: translateY(-1px);
+}
+
+.btn.remove {
+    background: var(--error);
+}
+
+.btn.remove:hover {
+    background: #963c35;
+}
+
+.btn.save {
+    background: var(--green);
+}
+
+.btn.save:hover {
+    background: var(--forest);
+}
+
+/* =========================================
+   ROAD SEARCH STATUS
+========================================= */
+
+#road-status {
+    margin: 18px 0 0;
+    padding: 12px 14px;
+    min-height: 48px;
+
+    background: var(--sage-light);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-small);
+
+    color: var(--forest);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+#road-status:empty {
+    display: none;
+}
+
+/* =========================================
+   INTERACTIVE MAP
+========================================= */
+
+.map-panel .panel-heading {
+    margin: 2px 4px 16px;
+}
+
+#map {
+    width: 100%;
+    height: 570px;
+    min-height: 400px;
+    flex: 1;
+
+    border: 1px solid var(--line);
+    border-radius: 12px;
+
+    overflow: hidden;
+    background: var(--sage-light);
+    z-index: 0;
+}
+
+/* Leaflet popup styling */
+
+.leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: var(--shadow-hover);
+}
+
+.leaflet-popup-content {
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.leaflet-popup-content strong {
+    color: var(--forest);
+}
+
+.leaflet-popup-content a {
+    font-weight: 650;
+    color: var(--green);
+}
+
+.leaflet-popup-content a:hover {
+    color: var(--terracotta-dark);
+}
+
+/* =========================================
+   POTHOLE REPORTING SECTION
+========================================= */
+
+#report-section {
+    margin-top: 30px;
+    padding: 34px;
+}
+
+#report-section h2 {
+    margin: 0 0 8px;
+    font-size: 1.55rem;
+}
+
+#report-section > p {
+    margin: 0 0 26px;
+    color: var(--muted);
+}
+
+/* =========================================
+   POTHOLE REPORT FORM
+========================================= */
+
+#pothole-report-form {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 14px 24px;
+    align-items: start;
+}
+
+.report-field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 8px;
+}
+
+.report-field label {
+    font-size: 0.9rem;
+    font-weight: 650;
+    color: var(--forest);
+}
+
+.report-field textarea,
+.report-field select,
+.report-field input[type="file"] {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+
+    border: 1px solid var(--line);
+    border-radius: var(--radius-small);
+
+    background: #fcfdfb;
+    color: var(--text);
+    font-size: 0.95rem;
+}
+
+.report-field textarea {
+    min-height: 135px;
+    resize: vertical;
+    line-height: 1.6;
+}
+
+.report-field textarea:focus,
+.report-field select:focus,
+.report-field input[type="file"]:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(88, 117, 98, 0.12);
+}
+
+.report-field input[type="file"]::file-selector-button {
+    background: var(--sage-light);
+    color: var(--forest);
+
+    border: 1px solid var(--sage);
+    border-radius: 7px;
+
+    padding: 9px 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 12px;
+}
+
+.report-field input[type="file"]::file-selector-button:hover {
+    background: #d5e3d1;
+}
+
+.report-field-wide {
+    grid-column: 1 / -1;
+}
+
+/* =========================================
+   SELECTED LOCATION STATUS
+========================================= */
+
+#selected-location-status {
+    grid-column: 1 / -1;
+
+    margin: 0 0 8px;
+    padding: 15px 18px;
+
+    background: var(--sage-light);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--green);
+
+    border-radius: var(--radius-small);
+
+    color: var(--forest);
+    font-size: 0.95rem;
+}
+
+/* =========================================
+   SUBMIT POTHOLE BUTTON
+========================================= */
+
+#submit-pothole-button {
+    grid-column: 1 / -1;
+
+    width: 100%;
+    min-height: 48px;
+    margin-top: 12px;
+
+    background: var(--terracotta);
+}
+
+#submit-pothole-button:not(:disabled):hover {
+    background: var(--terracotta-dark);
+}
+
+/* =========================================
+   AUTHENTICATION FORMS
+========================================= */
+
+.auth {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    max-width: 440px;
+    margin: 30px auto;
+    padding: 30px;
+
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.auth label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--forest);
+}
+
+.auth input,
+.auth select,
+.auth textarea {
+    width: 100%;
+    padding: 12px 14px;
+
+    background: #fcfdfb;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-small);
+
+    color: var(--text);
+}
+
+.auth input:focus,
+.auth select:focus,
+.auth textarea:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(88, 117, 98, 0.12);
+}
+
+.auth button {
+    margin-top: 12px;
+}
+
+/* =========================================
+   OTHER FORMS
+========================================= */
+
+main.container > form:not(.search):not(.auth) {
+    background: var(--white);
+    padding: 25px;
+
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+
+    box-shadow: var(--shadow);
+}
+
+main.container > form:not(.search):not(.auth)
+input:not([type="checkbox"]):not([type="radio"]),
+main.container > form:not(.search):not(.auth) select,
+main.container > form:not(.search):not(.auth) textarea {
+    max-width: 100%;
+
+    border: 1px solid var(--line);
+    border-radius: var(--radius-small);
+
+    padding: 10px 12px;
+    background: #fcfdfb;
+}
+
+/* =========================================
+   COMMUNITY REPORT CARDS
+   LARGER DESKTOP DESIGN
+========================================= */
+
+/* Three large cards per row */
+
+.cards {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    gap: 26px;
+
+    margin-top: 30px;
+    align-items: stretch;
+}
+
+/* Individual card */
+
+.cards > *,
+.card {
+    min-width: 0;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+
+    min-height: 210px;
+
+    padding: 24px;
+
+    background: var(--white);
+
+    border: 1px solid var(--line);
+    border-radius: 18px;
+
+    box-shadow: var(--shadow);
+
+    color: var(--text);
+    text-decoration: none;
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--sage);
+}
+
+/* Card headings and links */
+
+.card a {
+    color: var(--forest);
+    font-weight: 700;
+    font-size: 1.08rem;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.card a:hover {
+    color: var(--terracotta-dark);
+    text-decoration: underline;
+}
+
+.card h2,
+.card h3 {
+    font-size: 1.15rem;
+    margin: 0 0 14px;
+}
+
+/* Card description */
+
+.card p {
+    color: var(--text);
+    font-size: 0.96rem;
+    line-height: 1.7;
+
+    margin: 12px 0;
+
+    overflow-wrap: anywhere;
+}
+
+/* Card supporting information */
+
+.card small,
+.card .muted,
+.card .meta,
+.card time {
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
+/* Card spans */
+
+.card span {
+    font-weight: 600;
+}
+
+/* Images in cards */
+
+.card img {
+    display: block;
+
+    width: calc(100% + 48px);
+    max-width: none;
+    height: 185px;
+
+    object-fit: cover;
+
+    margin: -24px -24px 18px;
+
+    border-radius: 17px 17px 0 0;
+}
+
+/* Forms appearing inside cards */
+
+.card form {
+    margin-top: auto;
+    padding-top: 14px;
+}
+
+/* List items in cards */
+
+.card ul {
+    padding-left: 20px;
+}
+
+.card li {
+    margin-bottom: 7px;
+}
+
+/* =========================================
+   COMMUNITY REPORT LIST ENHANCEMENTS
+========================================= */
+
+/* Direct card content inside the grid */
+
+.cards > .card {
+    width: 100%;
+    height: 100%;
+}
+
+/* Longer descriptions wrap naturally */
+
+.cards .card {
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+/* Space out report metadata where possible */
+
+.cards .card > :last-child {
+    margin-top: auto;
+}
+
+/* Preserve spacing for elements inside cards */
+
+.cards .card > :first-child {
+    margin-top: 0;
+}
+
+/* =========================================
+   DETAIL PAGES
+========================================= */
+
+.detail {
+    max-width: 960px;
+
+    background: var(--white);
+
+    padding: 32px;
+
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+
+    box-shadow: var(--shadow);
+}
+
+.detail h1,
+.detail h2 {
+    margin-top: 0;
+}
+
+.detail .hero {
+    display: block;
+
+    max-width: 100%;
+    width: auto;
+    max-height: 420px;
+
+    object-fit: contain;
+
+    border-radius: 12px;
+    margin: 16px 0 22px;
+}
+
+.description {
+    line-height: 1.8;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+/* =========================================
+   FLASH MESSAGES
+========================================= */
+
+.flash {
+    padding: 14px 18px;
+    margin-bottom: 22px;
+
+    background: var(--sage-light);
+
+    border: 1px solid var(--sage);
+    border-radius: var(--radius-small);
+
+    color: var(--forest);
+}
+
+.flash p {
+    margin: 3px 0;
+}
+
+/* =========================================
+   ERRORS AND HINTS
+========================================= */
+
+.error {
+    color: var(--error);
+
+    font-size: 0.9rem;
+    font-weight: 500;
+
+    display: block;
+    margin: 5px 0 10px;
+}
+
+.hint {
+    color: var(--muted);
+    font-size: 0.94rem;
+}
+
+.hint code {
+    background: var(--sage-light);
+
+    padding: 2px 6px;
+    border-radius: 5px;
+}
+
+/* =========================================
+   TABLES
+========================================= */
+
+table {
+    width: 100%;
+
+    border-collapse: collapse;
+
+    margin: 20px 0;
+
+    background: var(--white);
+    border-radius: 10px;
+}
+
+th,
+td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+}
+
+th {
+    background: var(--sage-light);
+    color: var(--forest);
+    font-weight: 700;
+}
+
+tr:hover td {
+    background: #f8faf6;
+}
+
+/* =========================================
+   TABLET RESPONSIVE DESIGN
+========================================= */
+
+@media (max-width: 1100px) {
+
+    .container {
+        width: min(100% - 32px, 1380px);
+    }
+
+    .explore-layout {
+        grid-template-columns:
+            minmax(270px, 320px)
+            minmax(0, 1fr);
+
+        gap: 18px;
+    }
+
+    .search-panel {
+        padding: 22px;
+    }
+
+    #map {
+        height: 520px;
+    }
+
+    /* Two report cards per row */
+
+    .cards {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 22px;
+    }
+
+    .card {
+        min-height: 205px;
+        padding: 22px;
+    }
+
+    .card img {
+        width: calc(100% + 44px);
+        margin: -22px -22px 18px;
+    }
+}
+
+/* =========================================
+   MOBILE RESPONSIVE DESIGN
+========================================= */
+
+@media (max-width: 760px) {
+
+    .nav {
+        padding: 16px;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .nav nav {
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .nav nav a {
+        padding: 8px 9px;
+        font-size: 0.86rem;
+    }
+
+    .nav .who {
+        width: 100%;
+        text-align: center;
+    }
+
+    .container {
+        width: min(100% - 24px, 1380px);
+        padding: 26px 0 45px;
+    }
+
+    .home-intro {
+        margin-bottom: 22px;
+    }
+
+    /* Stack search and map */
+
+    .explore-layout {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .search-panel {
+        padding: 23px;
+    }
+
+    .map-panel {
+        padding: 14px;
+    }
+
+    #map {
+        height: 430px;
+        min-height: 350px;
+        flex: none;
+    }
+
+    /* Reporting section */
+
+    #report-section {
+        padding: 24px;
+        margin-top: 22px;
+    }
+
+    #pothole-report-form {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .report-field-wide,
+    #selected-location-status,
+    #submit-pothole-button {
+        grid-column: 1;
+    }
+
+    /* One report card per row */
+
+    .cards {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .card {
+        min-height: 180px;
+        padding: 22px;
+    }
+
+    .detail {
+        padding: 22px;
+    }
+
+    .auth {
+        margin: 20px auto;
+        padding: 24px;
+    }
+}
+
+/* =========================================
+   SMALL MOBILE SCREENS
+========================================= */
+
+@media (max-width: 420px) {
+
+    .nav .brand {
+        font-size: 1.4rem;
+    }
+
+    .container {
+        width: min(100% - 20px, 1380px);
+    }
+
+    .search-panel {
+        padding: 18px;
+    }
+
+    .map-panel {
+        padding: 10px;
+    }
+
+    #map {
+        height: 340px;
+        min-height: 300px;
+    }
+
+    #report-section {
+        padding: 19px;
+    }
+
+    .cards {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .card {
+        padding: 18px;
+        min-height: 170px;
+    }
+
+    .card img {
+        width: calc(100% + 36px);
+        margin: -18px -18px 16px;
+    }
+
+    .auth {
+        padding: 18px;
+    }
+
+    th,
+    td {
+        padding: 9px;
+        font-size: 0.86rem;
+    }
+}
+
+/* =========================================
+   ACCESSIBILITY
+========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}

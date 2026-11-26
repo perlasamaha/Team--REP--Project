@@ -2,7 +2,7 @@
 {% block title %}{{ title or "Report a hazard" }}{% endblock %}
 {% block content %}
 <h1>{{ title or "Report a pothole" }}</h1>
-<form method="post" action="{{ form_action or url_for('report_new') }}" novalidate class="auth">
+<form method="post" action="{{ form_action or url_for('report_new') }}" enctype="multipart/form-data" novalidate class="auth">
   <label>Region
     <select name="region">
       <option value="">Choose...</option>
@@ -28,6 +28,13 @@
 
   <label>Description <textarea name="description" rows="4">{{ data.get('description','') }}</textarea></label>
   {% if errors.get('description') %}<span class="error">{{ errors['description'] }}</span>{% endif %}
+
+    {% if not form_action %}
+    <label>Photo (optional)
+      <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+    </label>
+    {% if errors.get('photo') %}<span class="error">{{ errors['photo'] }}</span>{% endif %}
+  {% endif %}
 
   <button type="submit">{{ submit_label or "Post report" }}</button>
 </form>

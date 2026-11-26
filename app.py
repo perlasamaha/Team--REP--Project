@@ -360,6 +360,22 @@ def upload_to_imagekit(file, ext):
     except (requests.RequestException, ValueError, KeyError) as e:
         raise RuntimeError("ImageKit upload failed") from e
 
+def save_report_photo(report, file, ext):
+    """Upload one validated photo and attach it. Flashes a message, never raises."""
+    if not os.environ.get("IMAGEKIT_PRIVATE_KEY"):
+        flash("The report was saved, but photo uploads are not configured on this server.")
+        return False
+    try:
+        url, file_id = upload_to_imagekit(file, ext)
+    except RuntimeError:
+        app.logger.exception("ImageKit upload failed")
+        flash("The report was saved, but the photo could not be uploaded. "
+              "You can add it from the report page.")
+        return False
+    db.session.add(ReportImage(report_id=report.id, image_url=url, file_id=file_id))
+    db.session.commit()
+    flash("Photo added.")
+    return True
 
 def delete_remote_image(file_id):
     """Best effort: the database stays the source of truth if this fails."""
@@ -391,6 +407,12 @@ def report_new():
     regions = {key: r["label"] for key, r in api_client.REGIONS.items()}
     if request.method == "POST":
         errors, params, description, data = validate_report_form(request.form)
+        photo = request.files.get("photo")
+        photo_ext = None
+        if photo is not None and photo.filename:
+            photo_error, photo_ext = validate_image_file(photo)
+            if photo_error:
+                errors["photo"] = photo_error
         if errors:
             return render_template("report_form.html", errors=errors,
                                    data=data, regions=regions), 400
@@ -399,6 +421,8 @@ def report_new():
         db.session.add(report)
         db.session.commit()
         flash("Report posted. It is marked as unverified.")
+        if photo_ext:
+            save_report_photo(report, photo, photo_ext)
         return redirect(url_for("report_detail", report_id=report.id))
     return render_template("report_form.html", errors={}, data={}, regions=regions)
 

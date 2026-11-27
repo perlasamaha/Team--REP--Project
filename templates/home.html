@@ -31,34 +31,54 @@
             </p>
         </div>
 
+        <div class="search-instructions">
+            To search, choose one option: use your location, OR select a region and press Search Roads.
+        </div>
+
         <form id="road-search-form" class="search">
 
-            <!-- Region selection -->
-            <label for="region">Select a region</label>
+            <!-- Option 1: Current location -->
+            <div class="location-option">
 
-            <select id="region" name="region" required>
-                <option value="">Choose a region</option>
+                <h3>Option 1 — Use My Location</h3>
 
-                {% for key, label in regions.items() %}
-                    <option value="{{ key }}">
-                        {{ label }}
-                    </option>
-                {% endfor %}
-            </select>
+                <button type="button" id="use-my-location">
+                    Use My Location
+                </button>
 
+                <p id="detected-road-status" role="status" aria-live="polite">
+                    No road detected yet.
+                </p>
 
-            <!-- Current location -->
-            <button type="button" id="use-my-location">
-                Use My Location
-            </button>
+            </div>
 
-            <p id="detected-road-status" role="status" aria-live="polite">
-                 No road detected yet.
-            </p>
+            <!-- OR separator -->
+            <div class="search-divider">
+                OR
+            </div>
+
+            <!-- Option 2: Manual region selection -->
+            <div class="region-option">
+
+                <h3>Option 2 — Select a Region</h3>
+
+                <label for="region">Select a region</label>
+
+                <select id="region" name="region">
+                    <option value="">Choose a region</option>
+
+                    {% for key, label in regions.items() %}
+                        <option value="{{ key }}">
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+            </div>
 
 
             <!-- Road name -->
-            <label for="road-name">Road name</label>
+            <label for="road-name">Road name (Optional)</label>
 
             <input
                 type="text"
@@ -95,7 +115,7 @@
                 >
 
                 <label for="include-service">
-                    Include service roads
+                    Include service roads (Optional)
                 </label>
 
             </div>
@@ -153,7 +173,7 @@
         to help other drivers stay informed.
     </p>
 
-
+    <p class="required-note">Fields marked with * are required.</p>
     <form id="pothole-report-form">
 
         <!-- Selected location status -->
@@ -162,7 +182,7 @@
             role="status"
             aria-live="polite"
         >
-            No location selected. Click on the map
+            Location required *. Click on the map
             to choose a pothole location.
         </p>
 
@@ -171,7 +191,7 @@
         <div class="report-field report-field-wide">
 
             <label for="pothole-description">
-                Describe the pothole
+                Describe the pothole *
             </label>
 
             <textarea
@@ -189,7 +209,7 @@
         <div class="report-field">
 
             <label for="pothole-severity">
-                Pothole severity
+                Pothole severity *
             </label>
 
             <select

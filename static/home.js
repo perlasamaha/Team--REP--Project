@@ -137,13 +137,16 @@ async function loadPotholes(region) {
         const response = await fetch(url);
         const data = await response.json();
 
-        if (!response.ok) {
+       if (!response.ok) {
+    console.error('Failed to submit pothole report');
 
-            console.error('Failed to load pothole reports:', data);
-            alert("We couldn't load the pothole reports for the selected region. Please try again later.");
-            return;
+    alert(
+        "We couldn't submit your pothole report. " +
+        "Please check the selected location and report details, then try again."
+    );
 
-        }
+    return;
+}
 
         displayPotholes(data.reports);
 
@@ -345,6 +348,10 @@ potholeReportForm.addEventListener('submit', async function(event) {
 
     // Get the selected photo
     const photo = reportData.get('photo');
+    if (photo && photo.size > 5 * 1024 * 1024) {
+    alert('Photo is too large. Please choose an image smaller than 5 MB.');
+    return;
+}
 
     // Check whether a photo was selected
     if (photo && photo.size > 0) {
@@ -358,7 +365,7 @@ potholeReportForm.addEventListener('submit', async function(event) {
     }
 
     submitPotholeButton.disabled = true;
-    submitPotholeButton.textContent = 'Submitting...';
+    submitPotholeButton.textContent = 'Submitting report...';
 
     try {
 
@@ -368,10 +375,13 @@ potholeReportForm.addEventListener('submit', async function(event) {
         });
 
         if (!response.ok) {
+            
+            const data = await response.json();
+            const errorMessage = Object.values(data.errors)[0];
 
             console.error('Failed to submit pothole report');
 
-            alert("We couldn't submit your pothole report. Please check the selected location and report details, then try again.");
+            alert(errorMessage);
 
             return;
 
@@ -427,7 +437,7 @@ searchForm.addEventListener('submit', async function(event) {
 
     if (region === '') {
 
-        alert('Please select a region.');
+        alert('Please use your location or select a region first.');
         return;
 
     }
